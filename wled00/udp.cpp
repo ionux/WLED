@@ -245,7 +245,11 @@ void handleNotifications()
       if (!receiveDirect) return;
       if (packetSize > UDP_IN_MAXSIZE || packetSize < 3) return;
       realtimeIP = rgbUdp.remoteIP();
+
+#ifdef WLED_DEBUG
       DEBUG_PRINTLN(rgbUdp.remoteIP());
+#endif
+
       uint8_t lbuf[packetSize];
       rgbUdp.read(lbuf, packetSize);
       realtimeLock(realtimeTimeoutMs, REALTIME_MODE_HYPERION);
@@ -508,7 +512,11 @@ void handleNotifications()
   if (udpIn[0] > 0 && udpIn[0] < 5)
   {
     realtimeIP = (isSupp) ? notifier2Udp.remoteIP() : notifierUdp.remoteIP();
+
+#ifdef WLED_DEBUG
     DEBUG_PRINTLN(realtimeIP);
+#endif
+
     if (packetSize < 2) return;
 
     if (udpIn[1] == 0)
@@ -739,7 +747,9 @@ uint8_t realtimeBroadcast(uint8_t type, IPAddress client, uint16_t length, uint8
         if (sequenceNumber > 15) sequenceNumber = 0;
 
         if (!ddpUdp.beginPacket(client, DDP_DEFAULT_PORT)) {  // port defined in ESPAsyncE131.h
+#ifdef WLED_DEBUG
           DEBUG_PRINTLN(F("WiFiUDP.beginPacket returned an error"));
+#endif
           return 1; // problem
         }
 
@@ -780,7 +790,9 @@ uint8_t realtimeBroadcast(uint8_t type, IPAddress client, uint16_t length, uint8
         }
 
         if (!ddpUdp.endPacket()) {
+#ifdef WLED_DEBUG
           DEBUG_PRINTLN(F("WiFiUDP.endPacket returned an error"));
+#endif
           return 1; // problem
         }
 
@@ -809,7 +821,9 @@ uint8_t realtimeBroadcast(uint8_t type, IPAddress client, uint16_t length, uint8
         if (sequenceNumber > 255) sequenceNumber = 0;
 
         if (!ddpUdp.beginPacket(client, ARTNET_DEFAULT_PORT)) {
+#ifdef WLED_DEBUG
           DEBUG_PRINTLN(F("Art-Net WiFiUDP.beginPacket returned an error"));
+#endif
           return 1; // borked
         }
 
@@ -832,20 +846,27 @@ uint8_t realtimeBroadcast(uint8_t type, IPAddress client, uint16_t length, uint8
         ddpUdp.write(0xFF & (packetSize >> 8)); // 16-bit length of channel data, MSB
         ddpUdp.write(0xFF & (packetSize     )); // 16-bit length of channel data, LSB
 
-        for (size_t i = 0; i < packetSize; i += (isRGBW?4:3)) {
+        for (size_t i = 0; i < packetSize; i += (isRGBW?4:3))
+        {
           ddpUdp.write(scale8(buffer[bufferOffset++], bri)); // R
           ddpUdp.write(scale8(buffer[bufferOffset++], bri)); // G
           ddpUdp.write(scale8(buffer[bufferOffset++], bri)); // B
+
           if (isRGBW) ddpUdp.write(scale8(buffer[bufferOffset++], bri)); // W
         }
 
-        if (!ddpUdp.endPacket()) {
+        if (!ddpUdp.endPacket())
+        {
+#ifdef WLED_DEBUG
           DEBUG_PRINTLN(F("Art-Net WiFiUDP.endPacket returned an error"));
+#endif
           return 1; // borked
         }
         channel += packetSize;
       }
-    } break;
+    }
+    break;
   }
+
   return 0;
 }

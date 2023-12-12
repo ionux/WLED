@@ -87,9 +87,14 @@ void _overlayAnalogCountdown()
   }
 }
 
-void handleOverlayDraw() {
+void handleOverlayDraw()
+{
   usermods.handleOverlayDraw();
-  if (overlayCurrent == 1) _overlayAnalogClock();
+
+  if (overlayCurrent == 1)
+  {
+    _overlayAnalogClock();
+  }
 }
 
 /*

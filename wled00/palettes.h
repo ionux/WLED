@@ -1,3 +1,6 @@
+#ifndef PalettesWLED_h
+#define PalettesWLED_h
+
 /*
  * Color palettes for FastLED effects (65-73).
  */
@@ -10,14 +13,12 @@
 // converted for FastLED with gammas (2.6, 2.2, 2.5)
 // Size: 16 bytes of program space.
 
-#ifndef PalettesWLED_h
-#define PalettesWLED_h
-
 const byte ib_jul01_gp[] PROGMEM = {
     0, 194,  1,  1,
    94,   1, 29, 18,
   132,  57,131, 28,
-  255, 113,  1,  1};
+  255, 113,  1,  1
+};
 
 // Gradient palette "es_vintage_57_gp", originally from
 // http://soliton.vm.bytemark.co.uk/pub/cpt-city/es/vintage/tn/es_vintage_57.png.index.html
@@ -29,7 +30,8 @@ const byte es_vintage_57_gp[] PROGMEM = {
    53,  18,  1,  0,
   104,  69, 29,  1,
   153, 167,135, 10,
-  255,  46, 56,  4};
+  255,  46, 56,  4
+};
 
 
 // Gradient palette "es_vintage_01_gp", originally from

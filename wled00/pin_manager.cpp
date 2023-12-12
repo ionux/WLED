@@ -20,15 +20,17 @@ bool PinManagerClass::deallocatePin(byte gpio, PinOwner tag)
   if (!isPinOk(gpio, false)) return false; // but return false for any other invalid pin
 
   // if a non-zero ownerTag, only allow de-allocation if the owner's tag is provided
-  if ((ownerTag[gpio] != PinOwner::None) && (ownerTag[gpio] != tag)) {
-    #ifdef WLED_DEBUG
+  if ((ownerTag[gpio] != PinOwner::None) && (ownerTag[gpio] != tag))
+  {
+#ifdef WLED_DEBUG
     DEBUG_PRINT(F("PIN DEALLOC: IO "));
     DEBUG_PRINT(gpio);
     DEBUG_PRINT(F(" allocated by "));
     DebugPrintOwnerTag(ownerTag[gpio]);
     DEBUG_PRINT(F(", but attempted de-allocation by "));
     DebugPrintOwnerTag(tag);
-    #endif
+#endif
+
     return false;
   }
 
@@ -36,6 +38,7 @@ bool PinManagerClass::deallocatePin(byte gpio, PinOwner tag)
   byte bi = gpio - 8*by;
   bitWrite(pinAlloc[by], bi, false);
   ownerTag[gpio] = PinOwner::None;
+
   return true;
 }
 
@@ -43,47 +46,69 @@ bool PinManagerClass::deallocatePin(byte gpio, PinOwner tag)
 bool PinManagerClass::deallocateMultiplePins(const uint8_t *pinArray, byte arrayElementCount, PinOwner tag)
 {
   bool shouldFail = false;
+
+#ifdef WLED_DEBUG
   DEBUG_PRINTLN(F("MULTIPIN DEALLOC"));
+#endif
+
   // first verify the pins are OK and allocated by selected owner
-  for (int i = 0; i < arrayElementCount; i++) {
+  for (int i = 0; i < arrayElementCount; i++)
+  {
     byte gpio = pinArray[i];
-    if (gpio == 0xFF) {
+
+    if (gpio == 0xFF)
+    {
       // explicit support for io -1 as a no-op (no allocation of pin),
       // as this can greatly simplify configuration arrays
       continue;
     }
-    if (isPinAllocated(gpio, tag)) {
+
+    if (isPinAllocated(gpio, tag))
+    {
       // if the current pin is allocated by selected owner it is possible to release it
       continue;
     }
-    #ifdef WLED_DEBUG
+
+#ifdef WLED_DEBUG
     DEBUG_PRINT(F("PIN DEALLOC: IO "));
     DEBUG_PRINT(gpio);
     DEBUG_PRINT(F(" allocated by "));
     DebugPrintOwnerTag(ownerTag[gpio]);
     DEBUG_PRINT(F(", but attempted de-allocation by "));
     DebugPrintOwnerTag(tag);
-    #endif
+#endif
+
     shouldFail = true;
   }
-  if (shouldFail) {
+
+  if (shouldFail)
+  {
     return false; // no pins deallocated
   }
-  if (tag==PinOwner::HW_I2C) {
-    if (i2cAllocCount && --i2cAllocCount>0) {
+
+  if (tag==PinOwner::HW_I2C)
+  {
+    if (i2cAllocCount && --i2cAllocCount>0)
+    {
       // no deallocation done until last owner releases pins
       return true;
     }
   }
-  if (tag==PinOwner::HW_SPI) {
-    if (spiAllocCount && --spiAllocCount>0) {
+
+  if (tag==PinOwner::HW_SPI)
+  {
+    if (spiAllocCount && --spiAllocCount>0)
+    {
       // no deallocation done until last owner releases pins
       return true;
     }
   }
-  for (int i = 0; i < arrayElementCount; i++) {
+
+  for (int i = 0; i < arrayElementCount; i++)
+  {
     deallocatePin(pinArray[i], tag);
   }
+
   return true;
 }
 
@@ -106,25 +131,25 @@ bool PinManagerClass::allocateMultiplePins(const managed_pin_type * mptArray, by
       continue;
     }
     if (!isPinOk(gpio, mptArray[i].isOutput)) {
-      #ifdef WLED_DEBUG
+#ifdef WLED_DEBUG
       DEBUG_PRINT(F("PIN ALLOC: Invalid pin attempted to be allocated: GPIO "));
       DEBUG_PRINT(gpio);
       DEBUG_PRINT(" as "); DEBUG_PRINT(mptArray[i].isOutput ? "output": "input");
       DEBUG_PRINTLN(F(""));
-      #endif
+#endif
       shouldFail = true;
     }
     if ((tag==PinOwner::HW_I2C || tag==PinOwner::HW_SPI) && isPinAllocated(gpio, tag)) {
       // allow multiple "allocations" of HW I2C & SPI bus pins
       continue;
     } else if (isPinAllocated(gpio)) {
-      #ifdef WLED_DEBUG
+#ifdef WLED_DEBUG
       DEBUG_PRINT(F("PIN ALLOC: FAIL: IO "));
       DEBUG_PRINT(gpio);
       DEBUG_PRINT(F(" already allocated by "));
       DebugPrintOwnerTag(ownerTag[gpio]);
       DEBUG_PRINTLN(F(""));
-      #endif
+#endif
       shouldFail = true;
     }
   }
@@ -150,13 +175,13 @@ bool PinManagerClass::allocateMultiplePins(const managed_pin_type * mptArray, by
     byte bi = gpio - 8*by;
     bitWrite(pinAlloc[by], bi, true);
     ownerTag[gpio] = tag;
-    #ifdef WLED_DEBUG
+#ifdef WLED_DEBUG
     DEBUG_PRINT(F("PIN ALLOC: Pin "));
     DEBUG_PRINT(gpio);
     DEBUG_PRINT(F(" allocated by "));
     DebugPrintOwnerTag(tag);
     DEBUG_PRINTLN(F(""));
-    #endif
+#endif
   }
   return true;
 }
@@ -164,8 +189,9 @@ bool PinManagerClass::allocateMultiplePins(const managed_pin_type * mptArray, by
 bool PinManagerClass::allocatePin(byte gpio, bool output, PinOwner tag)
 {
   // HW I2C & SPI pins have to be allocated using allocateMultiplePins variant since there is always SCL/SDA pair
-  if (!isPinOk(gpio, output) || (gpio >= WLED_NUM_PINS) || tag==PinOwner::HW_I2C || tag==PinOwner::HW_SPI) {
-    #ifdef WLED_DEBUG
+  if (!isPinOk(gpio, output) || (gpio >= WLED_NUM_PINS) || tag==PinOwner::HW_I2C || tag==PinOwner::HW_SPI)
+  {
+#ifdef WLED_DEBUG
     if (gpio < 255) {  // 255 (-1) is the "not defined GPIO"
       if (!isPinOk(gpio, output)) {
         DEBUG_PRINT(F("PIN ALLOC: FAIL for owner "));
@@ -178,17 +204,21 @@ bool PinManagerClass::allocatePin(byte gpio, bool output, PinOwner tag)
         DEBUG_PRINTLN(F(" - HW I2C & SPI pins have to be allocated using allocateMultiplePins()"));
       }
     }
-    #endif
+#endif
+
     return false;
   }
-  if (isPinAllocated(gpio)) {
-    #ifdef WLED_DEBUG
+
+  if (isPinAllocated(gpio))
+  {
+#ifdef WLED_DEBUG
     DEBUG_PRINT(F("PIN ALLOC: Pin "));
     DEBUG_PRINT(gpio);
     DEBUG_PRINT(F(" already allocated by "));
     DebugPrintOwnerTag(ownerTag[gpio]);
     DEBUG_PRINTLN(F(""));
-    #endif
+#endif
+
     return false;
   }
 
@@ -196,13 +226,14 @@ bool PinManagerClass::allocatePin(byte gpio, bool output, PinOwner tag)
   byte bi = gpio - 8*by;
   bitWrite(pinAlloc[by], bi, true);
   ownerTag[gpio] = tag;
-  #ifdef WLED_DEBUG
+
+#ifdef WLED_DEBUG
   DEBUG_PRINT(F("PIN ALLOC: Pin "));
   DEBUG_PRINT(gpio);
   DEBUG_PRINT(F(" successfully allocated by "));
   DebugPrintOwnerTag(tag);
   DEBUG_PRINTLN(F(""));
-  #endif
+#endif
 
   return true;
 }
@@ -214,8 +245,10 @@ bool PinManagerClass::isPinAllocated(byte gpio, PinOwner tag)
   if (!isPinOk(gpio, false)) return true;
   if ((tag != PinOwner::None) && (ownerTag[gpio] != tag)) return false;
   if (gpio >= WLED_NUM_PINS) return false; // catch error case, to avoid array out-of-bounds access
+
   byte by = gpio >> 3;
   byte bi = gpio - (by<<3);
+
   return bitRead(pinAlloc[by], bi);
 }
 
@@ -266,12 +299,16 @@ bool PinManagerClass::isPinOk(byte gpio, bool output)
   if (gpio < 12) return false; //SPI flash pins
   if (gpio < 17) return true;
 #endif
+
   return false;
 }
 
-PinOwner PinManagerClass::getPinOwner(byte gpio) {
+PinOwner PinManagerClass::getPinOwner(byte gpio)
+{
   if (gpio >= WLED_NUM_PINS) return PinOwner::None; // catch error case, to avoid array out-of-bounds access
+
   if (!isPinOk(gpio, false)) return PinOwner::None;
+
   return ownerTag[gpio];
 }
 

@@ -115,41 +115,54 @@ static void presetWithFallback(uint8_t presetID, uint8_t effectID, uint8_t palet
  
 // Callback function that will be executed when data is received
 #ifdef ESP8266
-void OnDataRecv(uint8_t * mac, uint8_t *incomingData, uint8_t len) {
+void OnDataRecv(uint8_t * mac, uint8_t *incomingData, uint8_t len)
 #else
-void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
+void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len)
 #endif
-
+{
   sprintf (last_signal_src, "%02x%02x%02x%02x%02x%02x",
     mac [0], mac [1], mac [2], mac [3], mac [4], mac [5]);
 
-  if (strcmp(last_signal_src, linked_remote) != 0) {
+  if (strcmp(last_signal_src, linked_remote) != 0)
+  {
+  #ifdef WLED_DEBUG
     DEBUG_PRINT(F("ESP Now Message Received from Unlinked Sender: "));
     DEBUG_PRINTLN(last_signal_src);
+  #endif
+
     return;
   }
 
-  if (len != sizeof(incoming)) {
+  if (len != sizeof(incoming))
+  {
+#ifdef WLED_DEBUG
     DEBUG_PRINT(F("Unknown incoming ESP Now message received of length "));
     DEBUG_PRINTLN(len);
+#endif
+
     return;
   }
 
   memcpy(&(incoming.program), incomingData, sizeof(incoming));
+
   uint32_t cur_seq = incoming.seq[0] | (incoming.seq[1] << 8) | (incoming.seq[2] << 16) | (incoming.seq[3] << 24);
 
-  if (cur_seq == last_seq) {
+  if (cur_seq == last_seq)
+  {
     return;
   }
 
-
+#ifdef WLED_DEBUG
   DEBUG_PRINT(F("Incoming ESP Now Packet["));
   DEBUG_PRINT(cur_seq);
   DEBUG_PRINT(F("] from sender["));
   DEBUG_PRINT(last_signal_src);
   DEBUG_PRINT(F("] button: "));
   DEBUG_PRINTLN(incoming.button);
-  switch (incoming.button) {
+#endif
+
+  switch (incoming.button)
+  {
     case WIZMOTE_BUTTON_ON             : setOn();                                         stateUpdated(CALL_MODE_BUTTON); break;
     case WIZMOTE_BUTTON_OFF            : setOff();                                        stateUpdated(CALL_MODE_BUTTON); break;
     case WIZMOTE_BUTTON_ONE            : presetWithFallback(1, FX_MODE_STATIC,        0); resetNightMode(); break;
@@ -160,37 +173,55 @@ void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
     case WIZMOTE_BUTTON_BRIGHT_UP      : brightnessUp();                                  stateUpdated(CALL_MODE_BUTTON); break;
     case WIZMOTE_BUTTON_BRIGHT_DOWN    : brightnessDown();                                stateUpdated(CALL_MODE_BUTTON); break;
     default: break;
-
   }
 
   last_seq = cur_seq;
 }
 
-void handleRemote() {
-  if (enable_espnow_remote) {
-    if ((esp_now_state == ESP_NOW_STATE_UNINIT) && (interfacesInited || apActive)) { // ESPNOW requires Wifi to be initialized (either STA, or AP Mode) 
+void handleRemote()
+{
+  if (enable_espnow_remote)
+  {
+    if ((esp_now_state == ESP_NOW_STATE_UNINIT) && (interfacesInited || apActive)) { // ESPNOW requires Wifi to be initialized (either STA, or AP Mode)
+#ifdef WLED_DEBUG
       DEBUG_PRINTLN(F("Initializing ESP_NOW listener"));
+#endif
+
       // Init ESP-NOW
-      if (esp_now_init() != 0) {
+      if (esp_now_init() != 0)
+      {
+#ifdef WLED_DEBUG
         DEBUG_PRINTLN(F("Error initializing ESP-NOW"));
+#endif
         esp_now_state = ESP_NOW_STATE_ERROR;
       }
 
-      #ifdef ESP8266
+#ifdef ESP8266
       esp_now_set_self_role(ESP_NOW_ROLE_SLAVE);
-      #endif
+#endif
       
       esp_now_register_recv_cb(OnDataRecv);
       esp_now_state = ESP_NOW_STATE_ON;
     }
-  } else {
-    if (esp_now_state == ESP_NOW_STATE_ON) {
+  }
+  else
+  {
+    if (esp_now_state == ESP_NOW_STATE_ON)
+    {
+#ifdef WLED_DEBUG
       DEBUG_PRINTLN(F("Disabling ESP-NOW Remote Listener"));
+#endif
+
       if (esp_now_deinit() != 0) {
+#ifdef WLED_DEBUG
         DEBUG_PRINTLN(F("Error de-initializing ESP-NOW"));
+#endif
       }
+
       esp_now_state = ESP_NOW_STATE_UNINIT;
-    } else if (esp_now_state == ESP_NOW_STATE_ERROR) {
+    }
+    else if (esp_now_state == ESP_NOW_STATE_ERROR)
+    {
       //Clear any error states (allows retrying by cycling)
       esp_now_state = ESP_NOW_STATE_UNINIT;
     }

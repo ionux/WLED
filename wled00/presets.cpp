@@ -29,23 +29,22 @@ static void doSaveState() {
   initPresetsFile(); // just in case if someone deleted presets.json using /edit
   JsonObject sObj = doc.to<JsonObject>();
 
+#ifdef WLED_DEBUG
   DEBUG_PRINTLN(F("Serialize current state"));
+#endif
+
   if (playlistSave) {
     serializePlaylist(sObj);
     if (includeBri) sObj["on"] = true;
   } else {
     serializeState(sObj, true, includeBri, segBounds, selectedOnly);
   }
+
   sObj["n"] = saveName;
+
   if (quickLoad[0]) sObj[F("ql")] = quickLoad;
   if (saveLedmap >= 0) sObj[F("ledmap")] = saveLedmap;
-/*
-  #ifdef WLED_DEBUG
-    DEBUG_PRINTLN(F("Serialized preset"));
-    serializeJson(doc,Serial);
-    DEBUG_PRINTLN();
-  #endif
-*/
+
   #if defined(ARDUINO_ARCH_ESP32)
   if (!persist) {
     if (tmpRAMbuffer!=nullptr) free(tmpRAMbuffer);
@@ -113,10 +112,14 @@ void initPresetsFile()
 
 bool applyPreset(byte index, byte callMode)
 {
+#ifdef WLED_DEBUG
   DEBUG_PRINT(F("Request to apply preset: "));
   DEBUG_PRINTLN(index);
+#endif
+
   presetToApply = index;
   callModeToApply = callMode;
+
   return true;
 }
 
@@ -151,8 +154,10 @@ void handlePresets()
   presetToApply = 0; //clear request for preset
   callModeToApply = 0;
 
+#ifdef WLED_DEBUG
   DEBUG_PRINT(F("Applying preset: "));
   DEBUG_PRINTLN(tmpPreset);
+#endif
 
   #ifdef ARDUINO_ARCH_ESP32
   if (tmpPreset==255 && tmpRAMbuffer!=nullptr) {
@@ -206,10 +211,16 @@ void savePreset(byte index, const char* pname, JsonObject sObj)
     else                             sprintf_P(saveName, PSTR("Preset %d"), index);
   }
 
-  DEBUG_PRINT(F("Saving preset (")); DEBUG_PRINT(index); DEBUG_PRINT(F(") ")); DEBUG_PRINTLN(saveName);
+#ifdef WLED_DEBUG
+  DEBUG_PRINT(F("Saving preset ("));
+  DEBUG_PRINT(index);
+  DEBUG_PRINT(F(") "));
+  DEBUG_PRINTLN(saveName);
+#endif
 
   presetToSave = index;
   playlistSave = false;
+
   if (sObj[F("ql")].is<const char*>()) strlcpy(quickLoad, sObj[F("ql")].as<const char*>(), 9); // client limits QL to 2 chars, buffer for 8 bytes to allow unicode
 
   if (sObj["o"].isNull()) { // no "o" means not a playlist or custom API call, saving of state is async (not immediately)
@@ -242,7 +253,8 @@ void savePreset(byte index, const char* pname, JsonObject sObj)
   }
 }
 
-void deletePreset(byte index) {
+void deletePreset(byte index)
+{
   StaticJsonDocument<24> empty;
   writeObjectToFileUsingId(getFileName(), index, &empty);
   presetsModifiedTime = toki.second(); //unix time

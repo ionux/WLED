@@ -4,7 +4,8 @@
  * Adalight and TPM2 handler
  */
 
-enum class AdaState {
+enum class AdaState
+{
   Header_A,
   Header_d,
   Header_a,
@@ -23,13 +24,19 @@ uint16_t currentBaud = 1152; //default baudrate 115200 (divided by 100)
 bool continuousSendLED = false;
 uint32_t lastUpdate = 0;
 
-void updateBaudRate(uint32_t rate){
+void updateBaudRate(uint32_t rate)
+{
   uint16_t rate100 = rate/100;
+
   if (rate100 == currentBaud || rate100 < 96) return;
+
   currentBaud = rate100;
 
-  if (!pinManager.isPinAllocated(hardwareTX) || pinManager.getPinOwner(hardwareTX) == PinOwner::DebugOut){
+  if (!pinManager.isPinAllocated(hardwareTX) || pinManager.getPinOwner(hardwareTX) == PinOwner::DebugOut)
+  {
+#ifdef WLED_DEBUG
     Serial.print(F("Baud is now ")); Serial.println(rate);
+#endif
   }
 
   Serial.flush();

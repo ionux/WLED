@@ -8,10 +8,10 @@
 //build XML response to HTTP /win API request
 void XML_response(AsyncWebServerRequest *request, char* dest)
 {
-  char sbuf[(dest == nullptr)?1024:1]; //allocate local buffer if none passed
-  obuf = (dest == nullptr)? sbuf:dest;
-
+  char sbuf[(dest == nullptr) ? 1024 : 1]; //allocate local buffer if none passed
+  obuf = (dest == nullptr) ? sbuf : dest;
   olen = 0;
+
   oappend(SET_F("<?xml version=\"1.0\" ?><vs><ac>"));
   oappendi((nightlightActive && nightlightMode > NL_MODE_SET) ? briT : bri);
   oappend(SET_F("</ac>"));

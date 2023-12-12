@@ -86,23 +86,25 @@ bool Segment::_modeBlend = false;
 #endif
 
 // copy constructor
-Segment::Segment(const Segment &orig) {
-  //DEBUG_PRINTF("-- Copy segment constructor: %p -> %p\n", &orig, this);
+Segment::Segment(const Segment &orig)
+{
   memcpy((void*)this, (void*)&orig, sizeof(Segment));
+
   transitional = false; // copied segment cannot be in transition
   name = nullptr;
   data = nullptr;
   _dataLen = 0;
   _t = nullptr;
+
   if (orig.name) { name = new char[strlen(orig.name)+1]; if (name) strcpy(name, orig.name); }
   if (orig.data) { if (allocateData(orig._dataLen)) memcpy(data, orig.data, orig._dataLen); }
-  //if (orig._t)   { _t = new Transition(orig._t->_dur); }
 }
 
 // move constructor
-Segment::Segment(Segment &&orig) noexcept {
-  //DEBUG_PRINTF("-- Move segment constructor: %p -> %p\n", &orig, this);
+Segment::Segment(Segment &&orig) noexcept
+{
   memcpy((void*)this, (void*)&orig, sizeof(Segment));
+
   orig.transitional = false; // old segment cannot be in transition any more
   orig.name = nullptr;
   orig.data = nullptr;
@@ -111,94 +113,141 @@ Segment::Segment(Segment &&orig) noexcept {
 }
 
 // copy assignment
-Segment& Segment::operator= (const Segment &orig) {
-  //DEBUG_PRINTF("-- Copying segment: %p -> %p\n", &orig, this);
-  if (this != &orig) {
+Segment& Segment::operator= (const Segment &orig)
+{
+  if (this != &orig)
+  {
     // clean destination
     transitional = false; // copied segment cannot be in transition
+
     if (name) delete[] name;
-    if (_t) {
-      #ifndef WLED_DISABLE_MODE_BLEND
+
+    if (_t)
+    {
+#ifndef WLED_DISABLE_MODE_BLEND
       if (_t->_segT._dataT) free(_t->_segT._dataT);
-      #endif
+#endif
+
       delete _t;
     }
+
     deallocateData();
+
     // copy source
     memcpy((void*)this, (void*)&orig, sizeof(Segment));
+
     transitional = false;
     // erase pointers to allocated data
     name = nullptr;
     data = nullptr;
     _dataLen = 0;
     _t = nullptr;
+
     // copy source data
     if (orig.name) { name = new char[strlen(orig.name)+1]; if (name) strcpy(name, orig.name); }
     if (orig.data) { if (allocateData(orig._dataLen)) memcpy(data, orig.data, orig._dataLen); }
-    //if (orig._t)   { _t = new Transition(orig._t->_dur, orig._t->_briT, orig._t->_cctT, orig._t->_colorT); }
   }
+
   return *this;
 }
 
 // move assignment
-Segment& Segment::operator= (Segment &&orig) noexcept {
-  //DEBUG_PRINTF("-- Moving segment: %p -> %p\n", &orig, this);
-  if (this != &orig) {
+Segment& Segment::operator= (Segment &&orig) noexcept
+{
+  if (this != &orig)
+  {
     transitional = false; // just temporary
+
     if (name) { delete[] name; name = nullptr; } // free old name
+
     deallocateData(); // free old runtime data
-    if (_t) {
-      #ifndef WLED_DISABLE_MODE_BLEND
+
+    if (_t)
+    {
+#ifndef WLED_DISABLE_MODE_BLEND
       if (_t->_segT._dataT) free(_t->_segT._dataT);
-      #endif
+#endif
+
       delete _t;
       _t = nullptr;
     }
+
     memcpy((void*)this, (void*)&orig, sizeof(Segment));
+
     orig.transitional = false; // old segment cannot be in transition
     orig.name = nullptr;
     orig.data = nullptr;
     orig._dataLen = 0;
     orig._t   = nullptr;
   }
+
   return *this;
 }
 
-bool Segment::allocateData(size_t len) {
+bool Segment::allocateData(size_t len)
+{
   if (data && _dataLen == len) return true; //already allocated
-  //DEBUG_PRINTF("--   Allocating data (%d): %p\n", len, this);
+
   deallocateData();
+
   if (len == 0) return(false); // nothing to do
-  if (Segment::getUsedSegmentData() + len > MAX_SEGMENT_DATA) {
+
+  if (Segment::getUsedSegmentData() + len > MAX_SEGMENT_DATA)
+  {
     // not enough memory
+#ifdef WLED_DEBUG
     DEBUG_PRINT(F("!!! Effect RAM depleted: "));
     DEBUG_PRINTF("%d/%d !!!\n", len, Segment::getUsedSegmentData());
+#endif
+
     return false;
   }
+
   // do not use SPI RAM on ESP32 since it is slow
   data = (byte*) malloc(len);
-  if (!data) { DEBUG_PRINTLN(F("!!! Allocation failed. !!!")); return false; } //allocation failed
+
+  if (!data)
+  {
+#ifdef WLED_DEBUG
+    DEBUG_PRINTLN(F("!!! Allocation failed. !!!"));
+#endif
+
+    return false;
+  } //allocation failed
+
   Segment::addUsedSegmentData(len);
-  //DEBUG_PRINTF("---  Allocated data (%p): %d/%d -> %p\n", this, len, Segment::getUsedSegmentData(), data);
+
   _dataLen = len;
+
   memset(data, 0, len);
+
   return true;
 }
 
-void Segment::deallocateData() {
+void Segment::deallocateData()
+{
   if (!data) { _dataLen = 0; return; }
-  //DEBUG_PRINTF("---  Released data (%p): %d/%d -> %p\n", this, _dataLen, Segment::getUsedSegmentData(), data);
-  if ((Segment::getUsedSegmentData() > 0) && (_dataLen > 0)) { // check that we don't have a dangling / inconsistent data pointer
+
+  if ((Segment::getUsedSegmentData() > 0) && (_dataLen > 0))
+  {
+    // check that we don't have a dangling / inconsistent data pointer
     free(data);
-  } else {
+  }
+  else
+  {
+#ifdef WLED_DEBUG
     DEBUG_PRINT(F("---- Released data "));
     DEBUG_PRINTF("(%p): ", this);
     DEBUG_PRINT(F("inconsistent UsedSegmentData "));
     DEBUG_PRINTF("(%d/%d)", _dataLen, Segment::getUsedSegmentData());
     DEBUG_PRINTLN(F(", cowardly refusing to free nothing."));
+#endif
   }
+
   data = nullptr;
+
   Segment::addUsedSegmentData(_dataLen <= Segment::getUsedSegmentData() ? -_dataLen : -Segment::getUsedSegmentData());
+
   _dataLen = 0;
 }
 
@@ -209,10 +258,12 @@ void Segment::deallocateData() {
   * because it could access the data buffer and this method
   * may free that data buffer.
   */
-void Segment::resetIfRequired() {
+void Segment::resetIfRequired()
+{
   if (!reset) return;
-  //DEBUG_PRINTF("-- Segment reset: %p\n", this);
+
   deallocateData();
+
   next_time = 0; step = 0; call = 0; aux0 = 0; aux1 = 0;
   reset = false;
 }
@@ -300,57 +351,77 @@ CRGBPalette16 &Segment::loadPalette(CRGBPalette16 &targetPalette, uint8_t pal) {
   return targetPalette;
 }
 
-void Segment::startTransition(uint16_t dur) {
-  if (!dur) {
+void Segment::startTransition(uint16_t dur)
+{
+  if (!dur)
+  {
     if (_t) _t->_dur = dur; // this will stop transition in next handleTransisiton()
     else    transitional = false;
+
     return;
   }
+
   if (transitional && _t) return; // already in transition no need to store anything
 
   // starting a transition has to occur before change so we get current values 1st
   _t = new Transition(dur); // no previous transition running
+
   if (!_t) return; // failed to allocate data
 
-  //DEBUG_PRINTF("-- Started transition: %p\n", this);
-  CRGBPalette16 _palT = CRGBPalette16(DEFAULT_COLOR); loadPalette(_palT, palette);
+  CRGBPalette16 _palT = CRGBPalette16(DEFAULT_COLOR);
+
+  loadPalette(_palT, palette);
+
   _t->_palT           = _palT;
   _t->_briT           = on ? opacity : 0;
   _t->_cctT           = cct;
+
 #ifndef WLED_DISABLE_MODE_BLEND
   swapSegenv(_t->_segT);
+
   _t->_modeT          = mode;
   _t->_segT._optionsT |= 0b0000000001000000; // mark old segment transitional
   _t->_segT._dataLenT = 0;
   _t->_segT._dataT    = nullptr;
-  if (_dataLen > 0 && data) {
+
+  if (_dataLen > 0 && data)
+  {
     _t->_segT._dataT = (byte *)malloc(_dataLen);
-    if (_t->_segT._dataT) {
-      //DEBUG_PRINTF("--  Allocated duplicate data (%d): %p\n", _dataLen, _t->_segT._dataT);
+
+    if (_t->_segT._dataT)
+    {
       memcpy(_t->_segT._dataT, data, _dataLen);
+
       _t->_segT._dataLenT = _dataLen;
     }
   }
 #else
   for (size_t i=0; i<NUM_COLORS; i++) _t->_colorT[i] = colors[i];
 #endif
+
   transitional = true; // setOption(SEG_OPTION_TRANSITIONAL, true);
 }
 
-void Segment::stopTransition() {
+void Segment::stopTransition()
+{
   if (!transitional) return;
+
   transitional = false; // finish transitioning segment
-  //DEBUG_PRINTF("-- Stopping transition: %p\n", this);
-  if (_t) {
-    #ifndef WLED_DISABLE_MODE_BLEND
-    if (_t->_segT._dataT && _t->_segT._dataLenT > 0) {
-      //DEBUG_PRINTF("--  Released duplicate data (%d): %p\n", _t->_segT._dataLenT, _t->_segT._dataT);
+
+  if (_t)
+  {
+#ifndef WLED_DISABLE_MODE_BLEND
+    if (_t->_segT._dataT && _t->_segT._dataLenT > 0)
+    {
       free(_t->_segT._dataT);
+
       _t->_segT._dataT = nullptr;
       _t->_segT._dataLenT = 0;
     }
-    #endif
+#endif
+
     delete _t;
+
     _t = nullptr;
   }
 }
@@ -371,10 +442,12 @@ uint16_t Segment::progress() {
 }
 
 #ifndef WLED_DISABLE_MODE_BLEND
-void Segment::swapSegenv(tmpsegd_t &tmpSeg) {
-  //DEBUG_PRINTF("--  Saving temp seg: %p (%p)\n", this, tmpSeg);
+void Segment::swapSegenv(tmpsegd_t &tmpSeg)
+{
   tmpSeg._optionsT   = options;
+
   for (size_t i=0; i<NUM_COLORS; i++) tmpSeg._colorT[i] = colors[i];
+
   tmpSeg._speedT     = speed;
   tmpSeg._intensityT = intensity;
   tmpSeg._custom1T   = custom1;
@@ -389,10 +462,14 @@ void Segment::swapSegenv(tmpsegd_t &tmpSeg) {
   tmpSeg._callT      = call;
   tmpSeg._dataT      = data;
   tmpSeg._dataLenT   = _dataLen;
-  if (_t && &tmpSeg != &(_t->_segT)) {
+
+  if (_t && &tmpSeg != &(_t->_segT))
+  {
     // swap SEGENV with transitional data
     options   = _t->_segT._optionsT;
+
     for (size_t i=0; i<NUM_COLORS; i++) colors[i] = _t->_segT._colorT[i];
+
     speed     = _t->_segT._speedT;
     intensity = _t->_segT._intensityT;
     custom1   = _t->_segT._custom1T;
@@ -408,23 +485,25 @@ void Segment::swapSegenv(tmpsegd_t &tmpSeg) {
     data      = _t->_segT._dataT;
     _dataLen  = _t->_segT._dataLenT;
   }
-  //DEBUG_PRINTF("--   temp seg data: %p (%d,%p)\n", this, _dataLen, data);
 }
 
-void Segment::restoreSegenv(tmpsegd_t &tmpSeg) {
-  //DEBUG_PRINTF("--  Restoring temp seg: %p (%p)\n", this, tmpSeg);
-  if (_t && &(_t->_segT) != &tmpSeg) {
+void Segment::restoreSegenv(tmpsegd_t &tmpSeg)
+{
+  if (_t && &(_t->_segT) != &tmpSeg)
+  {
     // update possibly changed variables to keep old effect running correctly
     _t->_segT._aux0T = aux0;
     _t->_segT._aux1T = aux1;
     _t->_segT._stepT = step;
     _t->_segT._callT = call;
-    //if (_t->_segT._dataT != data) DEBUG_PRINTF("---  data re-allocated: (%p) %p -> %p\n", this, _t->_segT._dataT, data);
-    _t->_segT._dataT = data;        // sometimes memory gets re-allocated (!! INVESTIGATE WHY !!)
-    _t->_segT._dataLenT = _dataLen; // sometimes memory gets re-allocated (!! INVESTIGATE WHY !!)
+    _t->_segT._dataT = data;        // sometimes memory gets re-allocated (!! INVESTIGATE WHY !!) - RLM
+    _t->_segT._dataLenT = _dataLen; // sometimes memory gets re-allocated (!! INVESTIGATE WHY !!) - RLM
   }
+
   options   = tmpSeg._optionsT;
+
   for (size_t i=0; i<NUM_COLORS; i++) colors[i] = tmpSeg._colorT[i];
+
   speed     = tmpSeg._speedT;
   intensity = tmpSeg._intensityT;
   custom1   = tmpSeg._custom1T;
@@ -439,7 +518,6 @@ void Segment::restoreSegenv(tmpsegd_t &tmpSeg) {
   call      = tmpSeg._callT;
   data      = tmpSeg._dataT;
   _dataLen  = tmpSeg._dataLenT;
-  //DEBUG_PRINTF("--   temp seg data: %p (%d,%p)\n", this, _dataLen, data);
 }
 #endif
 
@@ -564,7 +642,12 @@ void Segment::setCCT(uint16_t k) {
 void Segment::setOpacity(uint8_t o) {
   if (opacity == o) return;
   if (fadeTransition) startTransition(strip.getTransition()); // start transition prior to change
-  DEBUG_PRINT(F("-- Setting opacity: ")); DEBUG_PRINTLN(o);
+
+#ifdef WLED_DEBUG
+  DEBUG_PRINT(F("-- Setting opacity: "));
+  DEBUG_PRINTLN(o);
+#endif
+
   opacity = o;
   stateChanged = true; // send UDP/WS broadcast
 }
@@ -1159,8 +1242,12 @@ void WS2812FX::finalizeInit(void)
   _hasWhiteChannel = _isOffRefreshRequired = false;
 
   //if busses failed to load, add default (fresh install, FS issue, ...)
-  if (busses.getNumBusses() == 0) {
+  if (busses.getNumBusses() == 0)
+  {
+#ifdef WLED_DEBUG
     DEBUG_PRINTLN(F("No busses, init default"));
+#endif
+
     const uint8_t defDataPins[] = {DATA_PINS};
     const uint16_t defCounts[] = {PIXEL_COUNTS};
     const uint8_t defNumBusses = ((sizeof defDataPins) / (sizeof defDataPins[0]));
@@ -1203,9 +1290,16 @@ void WS2812FX::finalizeInit(void)
   }
 
   //segments are created in makeAutoSegments();
+#ifdef WLED_DEBUG
   DEBUG_PRINTLN(F("Loading custom palettes"));
+#endif
+
   loadCustomPalettes(); // (re)load all custom palettes
+
+#ifdef WLED_DEBUG
   DEBUG_PRINTLN(F("Loading custom ledmaps"));
+#endif
+
   deserializeMap();     // (re)load default ledmap
 }
 
@@ -1275,16 +1369,18 @@ void WS2812FX::service() {
   _isServicing = false;
   _triggered = false;
 
-  #ifdef WLED_DEBUG
+#ifdef WLED_DEBUG
   if (millis() - nowUp > _frametime) DEBUG_PRINTLN(F("Slow effects."));
-  #endif
+#endif
+
   if (doShow) {
     yield();
     show();
   }
-  #ifdef WLED_DEBUG
+
+#ifdef WLED_DEBUG
   if (millis() - nowUp > _frametime) DEBUG_PRINTLN(F("Slow strip."));
-  #endif
+#endif
 }
 
 void IRAM_ATTR WS2812FX::setPixelColor(int i, uint32_t col)
@@ -1577,9 +1673,11 @@ void WS2812FX::purgeSegments(bool force) {
   }
 }
 
-Segment& WS2812FX::getSegment(uint8_t id) {
-  return _segments[id >= _segments.size() ? getMainSegmentId() : id]; // vectors
+Segment& WS2812FX::getSegment(uint8_t id)
+{
+  return _segments[(id >= _segments.size()) ? getMainSegmentId() : id]; // vectors
 }
+
 
 // sets new segment bounds, queues if that segment is currently running
 void WS2812FX::setSegment(uint8_t segId, uint16_t i1, uint16_t i2, uint8_t grouping, uint8_t spacing, uint16_t offset, uint16_t startY, uint16_t stopY) {
@@ -1787,9 +1885,12 @@ void WS2812FX::loadCustomPalettes() {
     sprintf_P(fileName, PSTR("/palette%d.json"), index);
 
     StaticJsonDocument<1536> pDoc; // barely enough to fit 72 numbers
-    if (WLED_FS.exists(fileName)) {
+    if (WLED_FS.exists(fileName))
+    {
+#ifdef WLED_DEBUG
       DEBUG_PRINT(F("Reading palette from "));
       DEBUG_PRINTLN(fileName);
+#endif
 
       if (readObjectFromFile(fileName, nullptr, &pDoc)) {
         JsonArray pal = pDoc[F("palette")];
@@ -1803,7 +1904,9 @@ void WS2812FX::loadCustomPalettes() {
               tcp[ j ] = (uint8_t) pal[ i ].as<int>(); // index
               colorFromHexString(rgbw, pal[i+1].as<const char *>()); // will catch non-string entires
               for (size_t c=0; c<3; c++) tcp[j+1+c] = rgbw[c]; // only use RGB component
+#ifdef WLED_DEBUG
               DEBUG_PRINTF("%d(%d) : %d %d %d\n", i, int(tcp[j]), int(tcp[j+1]), int(tcp[j+2]), int(tcp[j+3]));
+#endif
             }
           } else {
             size_t palSize = MIN(pal.size(), 72);
@@ -1813,7 +1916,9 @@ void WS2812FX::loadCustomPalettes() {
               tcp[i+1] = (uint8_t) pal[i+1].as<int>(); // R
               tcp[i+2] = (uint8_t) pal[i+2].as<int>(); // G
               tcp[i+3] = (uint8_t) pal[i+3].as<int>(); // B
+#ifdef WLED_DEBUG
               DEBUG_PRINTF("%d(%d) : %d %d %d\n", i, int(tcp[i]), int(tcp[i+1]), int(tcp[i+2]), int(tcp[i+3]));
+#endif
             }
           }
           customPalettes.push_back(targetPalette.loadDynamicGradientPalette(tcp));
@@ -1852,20 +1957,25 @@ bool WS2812FX::deserializeMap(uint8_t n) {
     return false; //if file does not exist just exit
   }
 
+#ifdef WLED_DEBUG
   DEBUG_PRINT(F("Reading LED map from "));
   DEBUG_PRINTLN(fileName);
+#endif
 
   // erase old custom ledmap
-  if (customMappingTable != nullptr) {
+  if (customMappingTable != nullptr)
+  {
     customMappingSize = 0;
     delete[] customMappingTable;
     customMappingTable = nullptr;
   }
 
   JsonArray map = doc[F("map")];
+
   if (!map.isNull() && map.size()) {  // not an empty map
     customMappingSize  = map.size();
     customMappingTable = new uint16_t[customMappingSize];
+
     for (uint16_t i=0; i<customMappingSize; i++) {
       customMappingTable[i] = (uint16_t) (map[i]<0 ? 0xFFFFU : map[i]);
     }

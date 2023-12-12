@@ -29,19 +29,25 @@ void serializeConfig();
 void serializeConfigSec();
 
 template<typename DestType>
-bool getJsonValue(const JsonVariant& element, DestType& destination) {
-  if (element.isNull()) {
+bool getJsonValue(const JsonVariant& element, DestType& destination)
+{
+  if (element.isNull())
+  {
     return false;
   }
 
   destination = element.as<DestType>();
+
   return true;
 }
 
 template<typename DestType, typename DefaultType>
-bool getJsonValue(const JsonVariant& element, DestType& destination, const DefaultType defaultValue) {
-  if(!getJsonValue(element, destination)) {
+bool getJsonValue(const JsonVariant& element, DestType& destination, const DefaultType defaultValue)
+{
+  if (!getJsonValue(element, destination))
+  {
     destination = defaultValue;
+
     return false;
   }
 
@@ -51,17 +57,21 @@ bool getJsonValue(const JsonVariant& element, DestType& destination, const Defau
 
 //colors.cpp
 // similar to NeoPixelBus NeoGammaTableMethod but allows dynamic changes (superseded by NPB::NeoGammaDynamicTableMethod)
-class NeoGammaWLEDMethod {
+class NeoGammaWLEDMethod
+{
   public:
     static uint8_t Correct(uint8_t value);      // apply Gamma to single channel
     static uint32_t Correct32(uint32_t color);  // apply Gamma to RGBW32 color (WLED specific, not used by NPB)
     static void calcGammaTable(float gamma);    // re-calculates & fills gamma table
     static inline uint8_t rawGamma8(uint8_t val) { return gammaT[val]; }  // get value from Gamma table (WLED specific, not used by NPB)
+
   private:
     static uint8_t gammaT[];
 };
+
 #define gamma32(c) NeoGammaWLEDMethod::Correct32(c)
 #define gamma8(c)  NeoGammaWLEDMethod::rawGamma8(c)
+
 uint32_t color_blend(uint32_t,uint32_t,uint16_t,bool b16=false);
 uint32_t color_add(uint32_t,uint32_t);
 inline uint32_t colorFromRgbw(byte* rgbw) { return uint32_t((byte(rgbw[3]) << 24) | (byte(rgbw[0]) << 16) | (byte(rgbw[1]) << 8) | (byte(rgbw[2]))); }
@@ -104,11 +114,12 @@ void sendHuePoll();
 void onHueData(void* arg, AsyncClient* client, void *data, size_t len);
 
 //improv.cpp
-enum ImprovRPCType {
-  Command_Wifi = 0x01,
+enum ImprovRPCType
+{
+  Command_Wifi  = 0x01,
   Request_State = 0x02,
-  Request_Info = 0x03,
-  Request_Scan = 0x04
+  Request_Info  = 0x03,
+  Request_Scan  = 0x04
 };
 
 void handleImprovPacket();
@@ -150,6 +161,7 @@ void serializeInfo(JsonObject root);
 void serializeModeNames(JsonArray root);
 void serializeModeData(JsonArray root);
 void serveJson(AsyncWebServerRequest* request);
+
 #ifdef WLED_ENABLE_JSONLIVE
 bool serveLiveLeds(AsyncWebServerRequest* request, uint32_t wsClient = 0);
 #endif
@@ -240,7 +252,8 @@ int getSignalQuality(int rssi);
 void WiFiEvent(WiFiEvent_t event);
 
 //um_manager.cpp
-typedef enum UM_Data_Types {
+typedef enum UM_Data_Types
+{
   UMT_BYTE = 0,
   UMT_UINT16,
   UMT_INT16,
@@ -256,26 +269,35 @@ typedef enum UM_Data_Types {
   UMT_FLOAT_ARR,
   UMT_DOUBLE_ARR
 } um_types_t;
-typedef struct UM_Exchange_Data {
+
+typedef struct UM_Exchange_Data
+{
   // should just use: size_t arr_size, void **arr_ptr, byte *ptr_type
   size_t       u_size;                 // size of u_data array
   um_types_t  *u_type;                 // array of data types
   void       **u_data;                 // array of pointers to data
-  UM_Exchange_Data() {
+
+  UM_Exchange_Data()
+  {
     u_size = 0;
     u_type = nullptr;
     u_data = nullptr;
   }
-  ~UM_Exchange_Data() {
+
+  ~UM_Exchange_Data()
+  {
     if (u_type) delete[] u_type;
     if (u_data) delete[] u_data;
   }
 } um_data_t;
+
 const unsigned int um_data_size = sizeof(um_data_t);  // 12 bytes
 
-class Usermod {
+class Usermod
+{
   protected:
     um_data_t *um_data; // um_data should be allocated using new in (derived) Usermod's setup() or constructor
+
   public:
     Usermod() { um_data = nullptr; }
     virtual ~Usermod() { if (um_data) delete um_data; }
@@ -298,7 +320,8 @@ class Usermod {
     virtual uint16_t getId() {return USERMOD_ID_UNSPECIFIED;}
 };
 
-class UsermodManager {
+class UsermodManager
+{
   private:
     Usermod* ums[WLED_MAX_USERMODS];
     byte numMods = 0;

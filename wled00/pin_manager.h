@@ -1,12 +1,14 @@
 #ifndef WLED_PIN_MANAGER_H
 #define WLED_PIN_MANAGER_H
+
 /*
  * Registers pins so there is no attempt for two interfaces to use the same pin
  */
 #include <Arduino.h>
 #include "const.h" // for USERMOD_* values
 
-typedef struct PinManagerPinType {
+typedef struct PinManagerPinType
+{
   int8_t pin;
   bool   isOutput;
 } managed_pin_type;
@@ -20,7 +22,8 @@ typedef struct PinManagerPinType {
  *     17 bytes on ESP8266
  *     40 bytes on ESP32
  */
-enum struct PinOwner : uint8_t {
+enum struct PinOwner : uint8_t
+{
   None          = 0,      // default == legacy == unspecified owner
   // High bit is set for all built-in pin owners
   Ethernet      = 0x81,
@@ -62,9 +65,11 @@ enum struct PinOwner : uint8_t {
   UM_SdCard            = USERMOD_ID_SD_CARD,            // 0x25 // Usermod "usermod_sd_card.h"
   UM_PWM_OUTPUTS       = USERMOD_ID_PWM_OUTPUTS         // 0x26 // Usermod "usermod_pwm_outputs.h"
 };
+
 static_assert(0u == static_cast<uint8_t>(PinOwner::None), "PinOwner::None must be zero, so default array initialization works as expected");
 
-class PinManagerClass {
+class PinManagerClass
+{
   private:
   #ifdef ESP8266
   #define WLED_NUM_PINS 17
@@ -76,7 +81,9 @@ class PinManagerClass {
   uint8_t ledcAlloc[2] = {0x00, 0x00}; //16 LEDC channels
   PinOwner ownerTag[WLED_NUM_PINS] = { PinOwner::None }; // new MCU's have up to 50 GPIO
   #endif
-  struct {
+
+  struct
+  {
     uint8_t i2cAllocCount : 4; // allow multiple allocation of I2C bus pins but keep track of allocations
     uint8_t spiAllocCount : 4; // allow multiple allocation of SPI bus pins but keep track of allocations
   };
@@ -100,14 +107,18 @@ class PinManagerClass {
   #if !defined(ESP8266) // ESP8266 compiler doesn't understand deprecated attribute
   [[deprecated("Replaced by three-parameter allocatePin(gpio, output, ownerTag), for improved debugging")]]
   #endif
+
   inline bool allocatePin(byte gpio, bool output = true) { return allocatePin(gpio, output, PinOwner::None); }
+
   #if !defined(ESP8266) // ESP8266 compiler doesn't understand deprecated attribute
   [[deprecated("Replaced by two-parameter deallocatePin(gpio, ownerTag), for improved debugging")]]
   #endif
+
   inline void deallocatePin(byte gpio) { deallocatePin(gpio, PinOwner::None); }
 
   // will return true for reserved pins
   bool isPinAllocated(byte gpio, PinOwner tag = PinOwner::None);
+
   // will return false for reserved pins
   bool isPinOk(byte gpio, bool output = true);
 

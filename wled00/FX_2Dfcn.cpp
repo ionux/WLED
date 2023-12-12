@@ -34,47 +34,64 @@
 // note: matrix may be comprised of multiple panels each with different orientation
 // but ledmap takes care of that. ledmap is constructed upon initialization
 // so matrix should disable regular ledmap processing
-void WS2812FX::setUpMatrix() {
+void WS2812FX::setUpMatrix()
+{
 #ifndef WLED_DISABLE_2D
   // erase old ledmap, just in case.
   if (customMappingTable != nullptr) delete[] customMappingTable;
+
   customMappingTable = nullptr;
   customMappingSize = 0;
 
   // isMatrix is set in cfg.cpp or set.cpp
-  if (isMatrix) {
+  if (isMatrix)
+  {
     // calculate width dynamically because it will have gaps
     Segment::maxWidth = 1;
     Segment::maxHeight = 1;
-    for (size_t i = 0; i < panel.size(); i++) {
+
+    for (size_t i = 0; i < panel.size(); i++)
+    {
       Panel &p = panel[i];
-      if (p.xOffset + p.width > Segment::maxWidth) {
+
+      if (p.xOffset + p.width > Segment::maxWidth)
+      {
         Segment::maxWidth = p.xOffset + p.width;
       }
-      if (p.yOffset + p.height > Segment::maxHeight) {
+
+      if (p.yOffset + p.height > Segment::maxHeight)
+      {
         Segment::maxHeight = p.yOffset + p.height;
       }
     }
 
     // safety check
-    if (Segment::maxWidth * Segment::maxHeight > MAX_LEDS || Segment::maxWidth <= 1 || Segment::maxHeight <= 1) {
+    if (Segment::maxWidth * Segment::maxHeight > MAX_LEDS || Segment::maxWidth <= 1 || Segment::maxHeight <= 1)
+    {
+#ifdef WLED_DEBUG
       DEBUG_PRINTLN(F("2D Bounds error."));
+#endif
+
       isMatrix = false;
       Segment::maxWidth = _length;
       Segment::maxHeight = 1;
       panels = 0;
       panel.clear(); // release memory allocated by panels
+
       resetSegments();
+
       return;
     }
 
     customMappingTable = new uint16_t[Segment::maxWidth * Segment::maxHeight];
 
-    if (customMappingTable != nullptr) {
+    if (customMappingTable != nullptr)
+    {
       customMappingSize = Segment::maxWidth * Segment::maxHeight;
 
       // fill with empty in case we don't fill the entire matrix
-      for (size_t i = 0; i< customMappingSize; i++) {
+      for (size_t i = 0; i < customMappingSize; i++)
+      {
         customMappingTable[i] = (uint16_t)-1;
       }
 
@@ -85,14 +102,18 @@ void WS2812FX::setUpMatrix() {
       // content of the file is just raw JSON array in the form of [val1,val2,val3,...]
       // there are no other "key":"value" pairs in it
       // allowed values are: -1 (missing pixel/no LED attached), 0 (inactive/unused pixel), 1 (active/used pixel)
-      char    fileName[32]; strcpy_P(fileName, PSTR("/2d-gaps.json")); // reduce flash footprint
+      char fileName[32] = {0};
+      strcpy_P(fileName, PSTR("/2d-gaps.json")); // reduce flash footprint
       bool    isFile = WLED_FS.exists(fileName);
       size_t  gapSize = 0;
       int8_t *gapTable = nullptr;
 
-      if (isFile && requestJSONBufferLock(20)) {
+      if (isFile && requestJSONBufferLock(20))
+      {
+#ifdef WLED_DEBUG
         DEBUG_PRINT(F("Reading LED gap from "));
         DEBUG_PRINTLN(fileName);
+#endif
         // read the array into global JSON buffer
         if (readObjectFromFile(fileName, nullptr, &doc)) {
           // the array is similar to ledmap, except it has only 3 values:
@@ -108,7 +129,10 @@ void WS2812FX::setUpMatrix() {
             }
           }
         }
+#ifdef WLED_DEBUG
         DEBUG_PRINTLN(F("Gaps loaded."));
+#endif
+
         releaseJSONBufferLock();
       }
 
@@ -130,18 +154,27 @@ void WS2812FX::setUpMatrix() {
       }
 
       // delete gap array as we no longer need it
-      if (gapTable) delete[] gapTable;
+      if (gapTable)
+      {
+        delete[] gapTable;
+      }
 
-      #ifdef WLED_DEBUG
+#ifdef WLED_DEBUG
       DEBUG_PRINT(F("Matrix ledmap:"));
       for (uint16_t i=0; i<customMappingSize; i++) {
         if (!(i%Segment::maxWidth)) DEBUG_PRINTLN();
         DEBUG_PRINTF("%4d,", customMappingTable[i]);
       }
       DEBUG_PRINTLN();
-      #endif
-    } else { // memory allocation error
+#endif
+    }
+    else
+    {
+      // memory allocation error
+#ifdef WLED_DEBUG
       DEBUG_PRINTLN(F("Ledmap alloc error."));
+#endif
+
       isMatrix = false;
       panels = 0;
       panel.clear();

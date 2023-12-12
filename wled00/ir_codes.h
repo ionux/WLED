@@ -1,3 +1,6 @@
+#ifndef WLED_IR_CODES_H
+#define WLED_IR_CODES_H
+
 //Infrared codes
 
 //Add your custom codes here
@@ -242,3 +245,5 @@
 #define ACTION_INTENSITY_UP     5
 #define ACTION_INTENSITY_DOWN   6
 #define ACTION_POWER            7
+
+#endif

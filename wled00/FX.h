@@ -670,9 +670,12 @@ typedef struct Segment {
 //static int segSize = sizeof(Segment);
 
 // main "strip" class
-class WS2812FX {  // 96 bytes
+class WS2812FX
+{
+  // 96 bytes
   typedef uint16_t (*mode_ptr)(void); // pointer to mode function
   typedef void (*show_callback)(void); // pre show callback
+
   typedef struct ModeData {
     uint8_t     _id;   // mode (effect) id
     mode_ptr    _fcn;  // mode (effect) function
@@ -729,8 +732,10 @@ class WS2812FX {  // 96 bytes
       _qOffset(0)
     {
       WS2812FX::instance = this;
+
       _mode.reserve(_modeCount);     // allocate memory to prevent initial fragmentation (does not increase size())
       _modeData.reserve(_modeCount); // allocate memory to prevent initial fragmentation (does not increase size())
+
       if (_mode.capacity() <= 1 || _modeData.capacity() <= 1) _modeCount = 1; // memory allocation failed only show Solid
       else setupEffectData();
     }

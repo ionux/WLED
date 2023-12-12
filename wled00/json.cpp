@@ -31,17 +31,15 @@ bool deserializeSegment(JsonObject elem, byte it, byte presetId)
     newSeg = true;
   }
 
-  //DEBUG_PRINTLN("-- JSON deserialize segment.");
   Segment& seg = strip.getSegment(id);
-  //DEBUG_PRINTF("--  Original segment: %p\n", &seg);
   Segment prev = seg; //make a backup so we can tell if something changed
-  //DEBUG_PRINTF("--  Duplicate segment: %p\n", &prev);
 
   uint16_t start = elem["start"] | seg.start;
   if (stop < 0) {
     int len = elem["len"];
     stop = (len > 0) ? start + len : seg.stop;
   }
+
   // 2D segments
   uint16_t startY = elem["startY"] | seg.startY;
   uint16_t stopY = elem["stopY"] | seg.stopY;
@@ -1081,16 +1079,22 @@ void serveJson(AsyncWebServerRequest* request)
         serializeModeNames(effects); // remove WLED-SR extensions from effect names
         lDoc[F("palettes")] = serialized((const __FlashStringHelper*)JSON_palette_names);
       }
-      //lDoc["m"] = lDoc.memoryUsage(); // JSON buffer usage, for remote debugging
   }
 
+#ifdef WLED_DEBUG
   DEBUG_PRINTF("JSON buffer size: %u for request: %d\n", lDoc.memoryUsage(), subJson);
+#endif
 
-  #ifdef WLED_DEBUG
-  size_t len =
-  #endif
+#ifdef WLED_DEBUG
+size_t len =
+#endif
+
   response->setLength();
-  DEBUG_PRINT(F("JSON content length: ")); DEBUG_PRINTLN(len);
+
+#ifdef WLED_DEBUG
+  DEBUG_PRINT(F("JSON content length: "));
+  DEBUG_PRINTLN(len);
+#endif
 
   request->send(response);
   releaseJSONBufferLock();

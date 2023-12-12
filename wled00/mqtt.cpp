@@ -48,40 +48,63 @@ void onMqttConnect(bool sessionPresent)
   usermods.onMqttConnect(sessionPresent);
 
   doPublishMqtt = true;
+
+#ifdef WLED_DEBUG
   DEBUG_PRINTLN(F("MQTT ready"));
+#endif
 }
 
 
-void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total) {
-  static char *payloadStr;
+void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total)
+{
+  static char *payloadStr = nullptr;
 
+#ifdef WLED_DEBUG
   DEBUG_PRINT(F("MQTT msg: "));
   DEBUG_PRINTLN(topic);
+#endif
 
   // paranoia check to avoid npe if no payload
-  if (payload==nullptr) {
+  if (payload == nullptr)
+  {
+#ifdef WLED_DEBUG
     DEBUG_PRINTLN(F("no payload -> leave"));
+#endif
+
     return;
   }
 
-  if (index == 0) {                       // start (1st partial packet or the only packet)
+  if (index == 0)
+  {
+    // start (1st partial packet or the only packet)
     if (payloadStr) delete[] payloadStr;  // fail-safe: release buffer
+
     payloadStr = new char[total+1];       // allocate new buffer
   }
+
   if (payloadStr == nullptr) return;      // buffer not allocated
 
   // copy (partial) packet to buffer and 0-terminate it if it is last packet
   char* buff = payloadStr + index;
+
   memcpy(buff, payload, len);
+
   if (index + len >= total) { // at end
     payloadStr[total] = '\0'; // terminate c style string
   } else {
+#ifdef WLED_DEBUG
     DEBUG_PRINTLN(F("Partial packet received."));
+#endif
+
     return; // process next packet
   }
+
+#ifdef WLED_DEBUG
   DEBUG_PRINTLN(payloadStr);
+#endif
 
   size_t topicPrefixLen = strlen(mqttDeviceTopic);
+
   if (strncmp(topic, mqttDeviceTopic, topicPrefixLen) == 0) {
     topic += topicPrefixLen;
   } else {
@@ -132,10 +155,14 @@ void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties 
 void publishMqtt()
 {
   doPublishMqtt = false;
-  if (!WLED_MQTT_CONNECTED) return;
-  DEBUG_PRINTLN(F("Publish MQTT"));
 
-  #ifndef USERMOD_SMARTNEST
+  if (!WLED_MQTT_CONNECTED) return;
+
+#ifdef WLED_DEBUG
+  DEBUG_PRINTLN(F("Publish MQTT"));
+#endif
+
+#ifndef USERMOD_SMARTNEST
   char s[10];
   char subuf[38];
 
@@ -164,6 +191,7 @@ void publishMqtt()
 
 //HA autodiscovery was removed in favor of the native integration in HA v0.102.0
 
+
 bool initMqtt()
 {
   if (!mqttEnabled || mqttServer[0] == 0 || !WLED_CONNECTED) return false;
@@ -173,24 +201,32 @@ bool initMqtt()
     mqtt->onMessage(onMqttMessage);
     mqtt->onConnect(onMqttConnect);
   }
+
   if (mqtt->connected()) return true;
 
+#ifdef WLED_DEBUG
   DEBUG_PRINTLN(F("Reconnecting MQTT"));
+#endif
+
   IPAddress mqttIP;
+
   if (mqttIP.fromString(mqttServer)) //see if server is IP or domain
   {
     mqtt->setServer(mqttIP, mqttPort);
   } else {
     mqtt->setServer(mqttServer, mqttPort);
   }
+
   mqtt->setClientId(mqttClientID);
+
   if (mqttUser[0] && mqttPass[0]) mqtt->setCredentials(mqttUser, mqttPass);
 
-  #ifndef USERMOD_SMARTNEST
+#ifndef USERMOD_SMARTNEST
   strlcpy(mqttStatusTopic, mqttDeviceTopic, 33);
   strcat_P(mqttStatusTopic, PSTR("/status"));
   mqtt->setWill(mqttStatusTopic, 0, true, "offline"); // LWT message
-  #endif
+#endif
+
   mqtt->setKeepAlive(MQTT_KEEP_ALIVE_TIME);
   mqtt->connect();
   return true;

@@ -220,7 +220,10 @@ void sendNTPPacket()
     #endif
   }
 
+#ifdef WLED_DEBUG
   DEBUG_PRINTLN(F("send NTP"));
+#endif
+
   byte pbuf[NTP_PACKET_SIZE];
   memset(pbuf, 0, NTP_PACKET_SIZE);
 
@@ -245,8 +248,12 @@ bool checkNTPResponse()
   if (!cb) return false;
 
   uint32_t ntpPacketReceivedTime = millis();
+
+#ifdef WLED_DEBUG
   DEBUG_PRINT(F("NTP recv, l="));
   DEBUG_PRINTLN(cb);
+#endif
+
   byte pbuf[NTP_PACKET_SIZE];
   ntpUdp.read(pbuf, NTP_PACKET_SIZE); // read the packet into the buffer
 
@@ -373,7 +380,10 @@ void checkTimers()
     // re-calculate sunrise and sunset just after midnight
     if (!hour(localTime) && minute(localTime)==1) calculateSunriseAndSunset();
 
+#ifdef WLED_DEBUG
     DEBUG_PRINTF("Local time: %02d:%02d\n", hour(localTime), minute(localTime));
+#endif
+
     for (uint8_t i = 0; i < 8; i++)
     {
       if (timerMacro[i] != 0
@@ -388,10 +398,16 @@ void checkTimers()
         applyPreset(timerMacro[i]);
       }
     }
+
     // sunrise macro
-    if (sunrise) {
+    if (sunrise)
+    {
       time_t tmp = sunrise + timerMinutes[8]*60;  // NOTE: may not be ok
+
+#ifdef WLED_DEBUG
       DEBUG_PRINTF("Trigger time: %02d:%02d\n", hour(tmp), minute(tmp));
+#endif
+
       if (timerMacro[8] != 0
           && hour(tmp) == hour(localTime)
           && minute(tmp) == minute(localTime)
@@ -400,13 +416,19 @@ void checkTimers()
       {
         unloadPlaylist();
         applyPreset(timerMacro[8]);
+#ifdef WLED_DEBUG
         DEBUG_PRINTF("Sunrise macro %d triggered.",timerMacro[8]);
+#endif
       }
     }
+
     // sunset macro
-    if (sunset) {
+    if (sunset)
+    {
       time_t tmp = sunset + timerMinutes[9]*60;  // NOTE: may not be ok
+#ifdef WLED_DEBUG
       DEBUG_PRINTF("Trigger time: %02d:%02d\n", hour(tmp), minute(tmp));
+#endif
       if (timerMacro[9] != 0
           && hour(tmp) == hour(localTime)
           && minute(tmp) == minute(localTime)
@@ -415,15 +437,19 @@ void checkTimers()
       {
         unloadPlaylist();
         applyPreset(timerMacro[9]);
+#ifdef WLED_DEBUG
         DEBUG_PRINTF("Sunset macro %d triggered.",timerMacro[9]);
+#endif
       }
     }
   }
 }
 
 #define ZENITH -0.83
+
 // get sunrise (or sunset) time (in minutes) for a given day at a given geo location
-int getSunriseUTC(int year, int month, int day, float lat, float lon, bool sunset=false) {
+int getSunriseUTC(int year, int month, int day, float lat, float lon, bool sunset=false)
+{
   //1. first calculate the day of the year
   float N1 = 275 * month / 9;
   float N2 = (month + 9) / 12;
@@ -491,7 +517,9 @@ void calculateSunriseAndSunset() {
       tim_0.tm_hour = minUTC / 60;
       tim_0.tm_min = minUTC % 60;
       sunrise = tz->toLocal(mktime(&tim_0) + utcOffsetSecs);
+#ifdef WLED_DEBUG
       DEBUG_PRINTF("Sunrise: %02d:%02d\n", hour(sunrise), minute(sunrise));
+#endif
     } else {
       sunrise = 0;
     }
@@ -503,7 +531,9 @@ void calculateSunriseAndSunset() {
       tim_0.tm_hour = minUTC / 60;
       tim_0.tm_min = minUTC % 60;
       sunset = tz->toLocal(mktime(&tim_0) + utcOffsetSecs);
+#ifdef WLED_DEBUG
       DEBUG_PRINTF("Sunset: %02d:%02d\n", hour(sunset), minute(sunset));
+#endif
     } else {
       sunset = 0;
     }

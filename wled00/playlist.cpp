@@ -38,7 +38,9 @@ void shufflePlaylist() {
     playlistEntries[currentIndex] = playlistEntries[randomIndex];
     playlistEntries[randomIndex] = temporaryValue;
   }
+#ifdef WLED_DEBUG
   DEBUG_PRINTLN(F("Playlist shuffle."));
+#endif
 }
 
 
@@ -49,7 +51,9 @@ void unloadPlaylist() {
   }
   currentPlaylist = playlistIndex = -1;
   playlistLen = playlistEntryDur = playlistOptions = 0;
+#ifdef WLED_DEBUG
   DEBUG_PRINTLN(F("Playlist unloaded."));
+#endif
 }
 
 
@@ -115,7 +119,10 @@ int16_t loadPlaylist(JsonObject playlistObj, byte presetId) {
   if (shuffle) playlistOptions |= PL_OPTION_SHUFFLE;
 
   currentPlaylist = presetId;
+#ifdef WLED_DEBUG
   DEBUG_PRINTLN(F("Playlist loaded."));
+#endif
+
   return currentPlaylist;
 }
 

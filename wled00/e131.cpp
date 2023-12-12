@@ -105,7 +105,10 @@ void handleE131Packet(e131_packet_t* p, IPAddress clientIP, byte protocol){
   uint8_t previousUniverses = uni - e131Universe;
 
   if (e131SkipOutOfSequence)
-    if (seq < e131LastSequenceNumber[previousUniverses] && seq > 20 && e131LastSequenceNumber[previousUniverses] < 250){
+  {
+    if (seq < e131LastSequenceNumber[previousUniverses] && seq > 20 && e131LastSequenceNumber[previousUniverses] < 250)
+    {
+#ifdef WLED_DEBUG
       DEBUG_PRINT(F("skipping E1.31 frame (last seq="));
       DEBUG_PRINT(e131LastSequenceNumber[previousUniverses]);
       DEBUG_PRINT(F(", current seq="));
@@ -113,8 +116,11 @@ void handleE131Packet(e131_packet_t* p, IPAddress clientIP, byte protocol){
       DEBUG_PRINT(F(", universe="));
       DEBUG_PRINT(uni);
       DEBUG_PRINTLN(")");
+#endif
       return;
     }
+  }
+
   e131LastSequenceNumber[previousUniverses] = seq;
 
   // update status info
@@ -322,9 +328,10 @@ void handleE131Packet(e131_packet_t* p, IPAddress clientIP, byte protocol){
         break;
       }
     default:
+#ifdef WLED_DEBUG
       DEBUG_PRINTLN(F("unknown E1.31 DMX mode"));
+#endif
       return;  // nothing to do
-      break;
   }
 
   e131NewData = true;
@@ -379,12 +386,14 @@ void handleArtnetPollReply(IPAddress ipAddress) {
         break;
       }
     default:
+#ifdef WLED_DEBUG
       DEBUG_PRINTLN(F("unknown E1.31 DMX mode"));
+#endif
       return;  // nothing to do
-      break;
   }
 
-  for (uint16_t i = startUniverse; i <= endUniverse; ++i) {
+  for (uint16_t i = startUniverse; i <= endUniverse; ++i)
+  {
     sendArtnetPollReply(&artnetPollReply, ipAddress, i);
   }
 }

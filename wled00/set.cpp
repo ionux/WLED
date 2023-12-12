@@ -94,7 +94,9 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
     useGlobalLedBuffer = request->hasArg(F("LD"));
 
     bool busesChanged = false;
-    for (uint8_t s = 0; s < WLED_MAX_BUSSES+WLED_MIN_VIRTUAL_BUSSES; s++) {
+
+    for (uint8_t s = 0; s < WLED_MAX_BUSSES+WLED_MIN_VIRTUAL_BUSSES; s++)
+    {
       char lp[4] = "L0"; lp[2] = 48+s; lp[3] = 0; //ascii 0-9 //strip data pin
       char lc[4] = "LC"; lc[2] = 48+s; lc[3] = 0; //strip length
       char co[4] = "CO"; co[2] = 48+s; co[3] = 0; //strip color order
@@ -106,16 +108,23 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
       char aw[4] = "AW"; aw[2] = 48+s; aw[3] = 0; //auto white mode
       char wo[4] = "WO"; wo[2] = 48+s; wo[3] = 0; //channel swap
       char sp[4] = "SP"; sp[2] = 48+s; sp[3] = 0; //bus clock speed (DotStar & PWM)
-      if (!request->hasArg(lp)) {
+
+      if (!request->hasArg(lp))
+      {
+#ifdef WLED_DEBUG
         DEBUG_PRINT(F("No data for "));
         DEBUG_PRINTLN(s);
+#endif
         break;
       }
-      for (uint8_t i = 0; i < 5; i++) {
+
+      for (uint8_t i = 0; i < 5; i++)
+      {
         lp[1] = 48+i;
         if (!request->hasArg(lp)) break;
         pins[i] = (request->arg(lp).length() > 0) ? request->arg(lp).toInt() : 255;
       }
+
       type = request->arg(lt).toInt();
       type |= request->hasArg(rf) << 7; // off refresh override
       skip = request->arg(sl).toInt();
@@ -279,9 +288,17 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
     }
     simplifiedUI = request->hasArg(F("SU"));
   #endif
+
+#ifdef WLED_DEBUG
     DEBUG_PRINTLN(F("Enumerating ledmaps"));
+#endif
+
     enumerateLedmaps();
+
+#ifdef WLED_DEBUG
     DEBUG_PRINTLN(F("Loading custom palettes"));
+#endif
+
     strip.loadCustomPalettes(); // (re)load all custom palettes
   }
 
@@ -558,7 +575,9 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
         //Wire.begin(i2c_sda, i2c_scl);
       } else {
         // there is no Wire.end()
+#ifdef WLED_DEBUG
         DEBUG_PRINTLN(F("Could not allocate I2C pins."));
+#endif
         i2c_sda = -1;
         i2c_scl = -1;
       }
@@ -590,7 +609,9 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
         #endif
       } else {
         //SPI.end();
+#ifdef WLED_DEBUG
         DEBUG_PRINTLN(F("Could not allocate SPI pins."));
+#endif
         spi_mosi = -1;
         spi_miso = -1;
         spi_sclk = -1;
@@ -613,29 +634,46 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
       if (mod.isNull()) {
         mod = um.createNestedObject(name.substring(0,umNameEnd)); // if it does not exist create it
       }
+
+#ifdef WLED_DEBUG
       DEBUG_PRINT(name.substring(0,umNameEnd));
       DEBUG_PRINT(":");
+#endif
+
       name = name.substring(umNameEnd+1); // remove mod name from string
 
       // if the resulting name still contains ":" this means nested object
       JsonObject subObj;
       int umSubObj = name.indexOf(":");
+
+#ifdef WLED_DEBUG
       DEBUG_PRINTF("(%d):",umSubObj);
-      if (umSubObj>0) {
+#endif
+
+      if (umSubObj>0)
+      {
         subObj = mod[name.substring(0,umSubObj)];
         if (subObj.isNull())
           subObj = mod.createNestedObject(name.substring(0,umSubObj));
         name = name.substring(umSubObj+1); // remove nested object name from string
-      } else {
+      }
+      else
+      {
         subObj = mod;
       }
+
+#ifdef WLED_DEBUG
       DEBUG_PRINT(name);
+#endif
 
       // check if parameters represent array
-      if (name.endsWith("[]")) {
+      if (name.endsWith("[]"))
+      {
         name.replace("[]","");
         value.replace(",",".");      // just in case conversion
-        if (!subObj[name].is<JsonArray>()) {
+
+        if (!subObj[name].is<JsonArray>())
+        {
           JsonArray ar = subObj.createNestedArray(name);
           if (value.indexOf(".") >= 0) ar.add(value.toFloat());  // we do have a float
           else                         ar.add(value.toInt());    // we may have an int
@@ -645,19 +683,26 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
           else                         subObj[name].add(value.toInt());    // we may have an int
           j++;
         }
+#ifdef WLED_DEBUG
         DEBUG_PRINT("[");
         DEBUG_PRINT(j);
         DEBUG_PRINT("] = ");
         DEBUG_PRINTLN(value);
-      } else {
+#endif
+      }
+      else
+      {
         // we are using a hidden field with the same name as our parameter (!before the actual parameter!)
         // to describe the type of parameter (text,float,int), for boolean patameters the first field contains "off"
         // so checkboxes have one or two fields (first is always "false", existence of second depends on checkmark and may be "true")
-        if (subObj[name].isNull()) {
+        if (subObj[name].isNull())
+        {
           // the first occurence of the field describes the parameter type (used in next loop)
           if (value == "false") subObj[name] = false; // checkboxes may have only one field
           else                  subObj[name] = value;
-        } else {
+        }
+        else
+        {
           String type = subObj[name].as<String>();  // get previously stored value as a type
           if (subObj[name].is<bool>())   subObj[name] = true;   // checkbox/boolean
           else if (type == "number") {
@@ -667,12 +712,18 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
           } else if (type == "int")      subObj[name] = value.toInt();
           else                           subObj[name] = value;  // text fields
         }
+#ifdef WLED_DEBUG
         DEBUG_PRINT(" = ");
         DEBUG_PRINTLN(value);
+#endif
       }
     }
     usermods.readFromConfig(um);  // force change of usermod parameters
+
+#ifdef WLED_DEBUG
     DEBUG_PRINTLN(F("Done re-init usermods."));
+#endif
+
     releaseJSONBufferLock();
   }
 
@@ -729,12 +780,16 @@ bool handleSet(AsyncWebServerRequest *request, const String& req, bool apply)
   if (!(req.indexOf("win") >= 0)) return false;
 
   int pos = 0;
+
+#ifdef WLED_DEBUG
   DEBUG_PRINT(F("API req: "));
   DEBUG_PRINTLN(req);
+#endif
 
   //segment select (sets main segment)
   pos = req.indexOf(F("SM="));
-  if (pos > 0 && !realtimeMode) {
+  if (pos > 0 && !realtimeMode)
+  {
     strip.setMainSegmentId(getNumVal(&req, pos));
   }
 

@@ -4,7 +4,8 @@
 #include <WString.h>
 #include <WiFiUdp.h>
 
-class NetworkDebugPrinter : public Print {
+class NetworkDebugPrinter : public Print
+{
   private:
     WiFiUDP debugUdp; // needs to be here otherwise UDP messages get truncated upon destruction
     IPAddress debugPrintHostIP;

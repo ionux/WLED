@@ -2,6 +2,7 @@
 #define BusWrapper_h
 
 #include "NeoPixelBusLg.h"
+#include "const.h"
 
 // temporary - these defines should actually be set in platformio.ini
 // C3: I2S0 and I2S1 methods not supported (has one I2S bus)
@@ -28,6 +29,7 @@
 
 //The dirty list of possible bus types. Quite a lot...
 #define I_NONE 0
+
 //ESP8266 RGB
 #define I_8266_U0_NEO_3 1
 #define I_8266_U1_NEO_3 2
@@ -262,38 +264,52 @@
 #define B_SS_P98_3 NeoPixelBusLg<P9813BgrFeature, P9813Method, NeoGammaNullMethod>
 
 // 48bit & 64bit to 24bit & 32bit RGB(W) conversion
-#define toRGBW32(c) (RGBW32((c>>40)&0xFF, (c>>24)&0xFF, (c>>8)&0xFF, (c>>56)&0xFF))
+#define toRGBW32(c) (RGBW32(((c) >> 40) & 0xFF, ((c) >> 24) & 0xFF, ((c) >> 8) & 0xFF, ((c) >> 56) & 0xFF))
 #define RGBW32(r,g,b,w) (uint32_t((byte(w) << 24) | (byte(r) << 16) | (byte(g) << 8) | (byte(b))))
 
 //handles pointer type conversion for all possible bus types
-class PolyBus {
+class PolyBus
+{
   public:
   // initialize SPI bus speed for DotStar methods
   template <class T>
-  static void beginDotStar(void* busPtr, int8_t sck, int8_t miso, int8_t mosi, int8_t ss, uint16_t clock_kHz = 0U) {
+  static void beginDotStar(void* busPtr, int8_t sck, int8_t miso, int8_t mosi, int8_t ss, uint16_t clock_kHz = 0U)
+  {
     T dotStar_strip = static_cast<T>(busPtr);
-    #ifdef ESP8266
+
+#ifdef ESP8266
     dotStar_strip->Begin();
-    #else
+#else
     if (sck == -1 && mosi == -1) dotStar_strip->Begin();
     else                         dotStar_strip->Begin(sck, miso, mosi, ss);
-    #endif
-    if (clock_kHz) dotStar_strip->SetMethodSettings(NeoSpiSettings((uint32_t)clock_kHz*1000));
+#endif
+
+    if (clock_kHz)
+    {
+      dotStar_strip->SetMethodSettings(NeoSpiSettings((uint32_t)(clock_kHz * 1000)));
+    }
   }
 
   // Begin & initialize the PixelSettings for TM1814 strips.
   template <class T>
-  static void beginTM1814(void* busPtr) {
+  static void beginTM1814(void* busPtr)
+  {
     T tm1814_strip = static_cast<T>(busPtr);
+
     tm1814_strip->Begin();
+
     // Max current for each LED (22.5 mA).
     tm1814_strip->SetPixelSettings(NeoTm1814Settings(/*R*/225, /*G*/225, /*B*/225, /*W*/225));
   }
 
-  static void begin(void* busPtr, uint8_t busType, uint8_t* pins, uint16_t clock_kHz = 0U) {
-    switch (busType) {
-      case I_NONE: break;
-    #ifdef ESP8266
+  static void begin(void* busPtr, uint8_t busType, uint8_t* pins, uint16_t clock_kHz = 0U)
+  {
+    switch (busType)
+    {
+      case I_NONE:
+        break;
+
+#ifdef ESP8266
       case I_8266_U0_NEO_3: (static_cast<B_8266_U0_NEO_3*>(busPtr))->Begin(); break;
       case I_8266_U1_NEO_3: (static_cast<B_8266_U1_NEO_3*>(busPtr))->Begin(); break;
       case I_8266_DM_NEO_3: (static_cast<B_8266_DM_NEO_3*>(busPtr))->Begin(); break;
@@ -327,8 +343,9 @@ class PolyBus {
       case I_8266_U1_UCS_4: (static_cast<B_8266_U1_UCS_4*>(busPtr))->Begin(); break;
       case I_8266_DM_UCS_4: (static_cast<B_8266_DM_UCS_4*>(busPtr))->Begin(); break;
       case I_8266_BB_UCS_4: (static_cast<B_8266_BB_UCS_4*>(busPtr))->Begin(); break;
-    #endif
-    #ifdef ARDUINO_ARCH_ESP32
+#endif
+
+#ifdef ARDUINO_ARCH_ESP32
       case I_32_RN_NEO_3: (static_cast<B_32_RN_NEO_3*>(busPtr))->Begin(); break;
       #ifndef WLED_NO_I2S0_PIXELBUS
       case I_32_I0_NEO_3: (static_cast<B_32_I0_NEO_3*>(busPtr))->Begin(); break;
@@ -336,7 +353,6 @@ class PolyBus {
       #ifndef WLED_NO_I2S1_PIXELBUS
       case I_32_I1_NEO_3: (static_cast<B_32_I1_NEO_3*>(busPtr))->Begin(); break;
       #endif
-//      case I_32_BB_NEO_3: (static_cast<B_32_BB_NEO_3*>(busPtr))->Begin(); break;
       case I_32_RN_NEO_4: (static_cast<B_32_RN_NEO_4*>(busPtr))->Begin(); break;
       #ifndef WLED_NO_I2S0_PIXELBUS
       case I_32_I0_NEO_4: (static_cast<B_32_I0_NEO_4*>(busPtr))->Begin(); break;
@@ -344,7 +360,6 @@ class PolyBus {
       #ifndef WLED_NO_I2S1_PIXELBUS
       case I_32_I1_NEO_4: (static_cast<B_32_I1_NEO_4*>(busPtr))->Begin(); break;
       #endif
-//      case I_32_BB_NEO_4: (static_cast<B_32_BB_NEO_4*>(busPtr))->Begin(); break;
       case I_32_RN_400_3: (static_cast<B_32_RN_400_3*>(busPtr))->Begin(); break;
       #ifndef WLED_NO_I2S0_PIXELBUS
       case I_32_I0_400_3: (static_cast<B_32_I0_400_3*>(busPtr))->Begin(); break;
@@ -352,7 +367,6 @@ class PolyBus {
       #ifndef WLED_NO_I2S1_PIXELBUS
       case I_32_I1_400_3: (static_cast<B_32_I1_400_3*>(busPtr))->Begin(); break;
       #endif
-//      case I_32_BB_400_3: (static_cast<B_32_BB_400_3*>(busPtr))->Begin(); break;
       case I_32_RN_TM1_4: beginTM1814<B_32_RN_TM1_4*>(busPtr); break;
       case I_32_RN_TM2_3: (static_cast<B_32_RN_TM2_3*>(busPtr))->Begin(); break;
       #ifndef WLED_NO_I2S0_PIXELBUS
@@ -370,7 +384,6 @@ class PolyBus {
       #ifndef WLED_NO_I2S1_PIXELBUS
       case I_32_I1_UCS_3: (static_cast<B_32_I1_UCS_3*>(busPtr))->Begin(); break;
       #endif
-//      case I_32_BB_UCS_3: (static_cast<B_32_BB_UCS_3*>(busPtr))->Begin(); break;
       case I_32_RN_UCS_4: (static_cast<B_32_RN_UCS_4*>(busPtr))->Begin(); break;
       #ifndef WLED_NO_I2S0_PIXELBUS
       case I_32_I0_UCS_4: (static_cast<B_32_I0_UCS_4*>(busPtr))->Begin(); break;
@@ -378,24 +391,30 @@ class PolyBus {
       #ifndef WLED_NO_I2S1_PIXELBUS
       case I_32_I1_UCS_4: (static_cast<B_32_I1_UCS_4*>(busPtr))->Begin(); break;
       #endif
-//      case I_32_BB_UCS_4: (static_cast<B_32_BB_UCS_4*>(busPtr))->Begin(); break;
       // ESP32 can (and should, to avoid inadvertantly driving the chip select signal) specify the pins used for SPI, but only in begin()
       case I_HS_DOT_3: beginDotStar<B_HS_DOT_3*>(busPtr, pins[1], -1, pins[0], -1, clock_kHz); break;
       case I_HS_LPD_3: beginDotStar<B_HS_LPD_3*>(busPtr, pins[1], -1, pins[0], -1, clock_kHz); break;
       case I_HS_LPO_3: beginDotStar<B_HS_LPO_3*>(busPtr, pins[1], -1, pins[0], -1, clock_kHz); break;
       case I_HS_WS1_3: beginDotStar<B_HS_WS1_3*>(busPtr, pins[1], -1, pins[0], -1, clock_kHz); break;
       case I_HS_P98_3: beginDotStar<B_HS_P98_3*>(busPtr, pins[1], -1, pins[0], -1, clock_kHz); break;
-    #endif
+#endif
+
       case I_SS_DOT_3: (static_cast<B_SS_DOT_3*>(busPtr))->Begin(); break;
       case I_SS_LPD_3: (static_cast<B_SS_LPD_3*>(busPtr))->Begin(); break;
       case I_SS_LPO_3: (static_cast<B_SS_LPO_3*>(busPtr))->Begin(); break;
       case I_SS_WS1_3: (static_cast<B_SS_WS1_3*>(busPtr))->Begin(); break;
       case I_SS_P98_3: (static_cast<B_SS_P98_3*>(busPtr))->Begin(); break;
+
+      default:
+        // RLM - adding to address safety code smell
+        break;
     }
   }
 
-  static void* create(uint8_t busType, uint8_t* pins, uint16_t len, uint8_t channel, uint16_t clock_kHz = 0U) {
+  static void* create(uint8_t busType, uint8_t* pins, uint16_t len, uint8_t channel, uint16_t clock_kHz = 0U)
+  {
     void* busPtr = nullptr;
+
     switch (busType) {
       case I_NONE: break;
     #ifdef ESP8266
@@ -492,12 +511,16 @@ class PolyBus {
       case I_HS_P98_3: busPtr = new B_HS_P98_3(len, pins[1], pins[0]); break;
       case I_SS_P98_3: busPtr = new B_SS_P98_3(len, pins[1], pins[0]); break;
     }
+
     begin(busPtr, busType, pins, clock_kHz);
+
     return busPtr;
   }
 
-  static void show(void* busPtr, uint8_t busType, bool consistent = true) {
-    switch (busType) {
+  static void show(void* busPtr, uint8_t busType, bool consistent = true)
+  {
+    switch (busType)
+    {
       case I_NONE: break;
     #ifdef ESP8266
       case I_8266_U0_NEO_3: (static_cast<B_8266_U0_NEO_3*>(busPtr))->Show(consistent); break;
@@ -594,7 +617,8 @@ class PolyBus {
     }
   }
 
-  static bool canShow(void* busPtr, uint8_t busType) {
+  static bool canShow(void* busPtr, uint8_t busType)
+  {
     switch (busType) {
       case I_NONE: return true;
     #ifdef ESP8266
@@ -689,18 +713,22 @@ class PolyBus {
       case I_HS_P98_3: return (static_cast<B_HS_P98_3*>(busPtr))->CanShow(); break;
       case I_SS_P98_3: return (static_cast<B_SS_P98_3*>(busPtr))->CanShow(); break;
     }
+
     return true;
   }
 
-  static void setPixelColor(void* busPtr, uint8_t busType, uint16_t pix, uint32_t c, uint8_t co) {
+  static void setPixelColor(void* busPtr, uint8_t busType, uint16_t pix, uint32_t c, uint8_t co)
+  {
     uint8_t r = c >> 16;
     uint8_t g = c >> 8;
     uint8_t b = c >> 0;
     uint8_t w = c >> 24;
-    RgbwColor col;
+
+    RgbwColor col = {};
 
     // reorder channels to selected order
-    switch (co & 0x0F) {
+    switch (co & 0x0F)
+    {
       default: col.G = g; col.R = r; col.B = b; break; //0 = GRB, default
       case  1: col.G = r; col.R = g; col.B = b; break; //1 = RGB, common for WS2811
       case  2: col.G = b; col.R = r; col.B = g; break; //2 = BRG
@@ -708,15 +736,18 @@ class PolyBus {
       case  4: col.G = b; col.R = g; col.B = r; break; //4 = BGR
       case  5: col.G = g; col.R = b; col.B = r; break; //5 = GBR
     }
+
     // upper nibble contains W swap information
-    switch (co >> 4) {
+    switch (co >> 4)
+    {
       default: col.W = w;                break; // no swapping
       case  1: col.W = col.B; col.B = w; break; // swap W & B
       case  2: col.W = col.G; col.G = w; break; // swap W & G
       case  3: col.W = col.R; col.R = w; break; // swap W & R
     }
 
-    switch (busType) {
+    switch (busType)
+    {
       case I_NONE: break;
     #ifdef ESP8266
       case I_8266_U0_NEO_3: (static_cast<B_8266_U0_NEO_3*>(busPtr))->SetPixelColor(pix, RgbColor(col)); break;
@@ -813,8 +844,10 @@ class PolyBus {
     }
   }
 
-  static void setBrightness(void* busPtr, uint8_t busType, uint8_t b) {
-    switch (busType) {
+  static void setBrightness(void* busPtr, uint8_t busType, uint8_t b)
+  {
+    switch (busType)
+    {
       case I_NONE: break;
     #ifdef ESP8266
       case I_8266_U0_NEO_3: (static_cast<B_8266_U0_NEO_3*>(busPtr))->SetLuminance(b); break;
@@ -1011,12 +1044,16 @@ class PolyBus {
 
     // upper nibble contains W swap information
     uint8_t w = col.W;
-    switch (co >> 4) {
+
+    switch (co >> 4)
+    {
       case 1: col.W = col.B; col.B = w; break; // swap W & B
       case 2: col.W = col.G; col.G = w; break; // swap W & G
       case 3: col.W = col.R; col.R = w; break; // swap W & R
     }
-    switch (co & 0x0F) {
+
+    switch (co & 0x0F)
+    {
       //                    W               G              R               B
       default: return ((col.W << 24) | (col.G << 8) | (col.R << 16) | (col.B)); //0 = GRB, default
       case  1: return ((col.W << 24) | (col.R << 8) | (col.G << 16) | (col.B)); //1 = RGB, common for WS2811
@@ -1025,12 +1062,20 @@ class PolyBus {
       case  4: return ((col.W << 24) | (col.R << 8) | (col.B << 16) | (col.G)); //4 = BGR
       case  5: return ((col.W << 24) | (col.G << 8) | (col.B << 16) | (col.R)); //5 = GBR
     }
+
     return 0;
   }
 
-  static void cleanup(void* busPtr, uint8_t busType) {
-    if (busPtr == nullptr) return;
-    switch (busType) {
+  // RLM - verify memory operations
+  static void cleanup(void* busPtr, uint8_t busType)
+  {
+    if (busPtr == nullptr)
+    {
+      return;
+    }
+
+    switch (busType)
+    {
       case I_NONE: break;
     #ifdef ESP8266
       case I_8266_U0_NEO_3: delete (static_cast<B_8266_U0_NEO_3*>(busPtr)); break;
@@ -1128,91 +1173,85 @@ class PolyBus {
   }
 
   //gives back the internal type index (I_XX_XXX_X above) for the input
-  static uint8_t getI(uint8_t busType, uint8_t* pins, uint8_t num = 0) {
-    if (!IS_DIGITAL(busType)) return I_NONE;
-    if (IS_2PIN(busType)) { //SPI LED chips
+  static uint8_t getI(uint8_t busType, uint8_t* pins, uint8_t num = 0)
+  {
+    if (!IS_DIGITAL(busType))
+    {
+      return I_NONE;
+    }
+
+    if (IS_2PIN(busType))
+    {
+      // SPI LED chips
       bool isHSPI = false;
-      #ifdef ESP8266
-      if (pins[0] == P_8266_HS_MOSI && pins[1] == P_8266_HS_CLK) isHSPI = true;
-      #else
-      // temporary hack to limit use of hardware SPI to a single SPI peripheral (HSPI): only allow ESP32 hardware serial on segment 0
-      // SPI global variable is normally linked to VSPI on ESP32 (or FSPI C3, S3)
-      if (!num) isHSPI = true;
-      #endif
+
+      // RLM - range check array bounds
+      if ((pins[0] == P_8266_HS_MOSI) && (pins[1] == P_8266_HS_CLK))
+      {
+        isHSPI = true;
+      }
+
       uint8_t t = I_NONE;
-      switch (busType) {
+
+      switch (busType)
+      {
         case TYPE_APA102:  t = I_SS_DOT_3; break;
         case TYPE_LPD8806: t = I_SS_LPD_3; break;
         case TYPE_LPD6803: t = I_SS_LPO_3; break;
         case TYPE_WS2801:  t = I_SS_WS1_3; break;
         case TYPE_P9813:   t = I_SS_P98_3; break;
-        default: t=I_NONE;
+        default: t = I_NONE; break;
       }
-      if (t > I_NONE && isHSPI) t--; //hardware SPI has one smaller ID than software
+
+      if ((t > I_NONE) && isHSPI)
+      {
+        t--; //hardware SPI has one smaller ID than software
+      }
+
       return t;
-    } else {
-      #ifdef ESP8266
-      uint8_t offset = pins[0] -1; //for driver: 0 = uart0, 1 = uart1, 2 = dma, 3 = bitbang
-      if (offset > 3) offset = 3;
-      switch (busType) {
-        case TYPE_WS2812_1CH_X3:
-        case TYPE_WS2812_2CH_X3:
-        case TYPE_WS2812_RGB:
-        case TYPE_WS2812_WWA:
-          return I_8266_U0_NEO_3 + offset;
-        case TYPE_SK6812_RGBW:
-          return I_8266_U0_NEO_4 + offset;
-        case TYPE_WS2811_400KHZ:
-          return I_8266_U0_400_3 + offset;
-        case TYPE_TM1814:
-          return I_8266_U0_TM1_4 + offset;
-        case TYPE_TM1829:
-          return I_8266_U0_TM2_3 + offset;
-        case TYPE_UCS8903:
-          return I_8266_U0_UCS_3 + offset;
-        case TYPE_UCS8904:
-          return I_8266_U0_UCS_4 + offset;
-      }
-      #else //ESP32
-      uint8_t offset = 0; //0 = RMT (num 0-7) 8 = I2S0 9 = I2S1
-      #if defined(CONFIG_IDF_TARGET_ESP32S2)
-      // ESP32-S2 only has 4 RMT channels
-      if (num > 4) return I_NONE;
-      if (num > 3) offset = 1;  // only one I2S
-      #elif defined(CONFIG_IDF_TARGET_ESP32C3)
-      // On ESP32-C3 only the first 2 RMT channels are usable for transmitting
-      if (num > 1) return I_NONE;
-      //if (num > 1) offset = 1; // I2S not supported yet (only 1 I2S)
-      #elif defined(CONFIG_IDF_TARGET_ESP32S3)
-      // On ESP32-S3 only the first 4 RMT channels are usable for transmitting
-      if (num > 3) return I_NONE;
-      //if (num > 3) offset = num -4; // I2S not supported yet
-      #else
-      // standard ESP32 has 8 RMT and 2 I2S channels
-      if (num > 9) return I_NONE;
-      if (num > 7) offset = num -7;
-      #endif
-      switch (busType) {
-        case TYPE_WS2812_1CH_X3:
-        case TYPE_WS2812_2CH_X3:
-        case TYPE_WS2812_RGB:
-        case TYPE_WS2812_WWA:
-          return I_32_RN_NEO_3 + offset;
-        case TYPE_SK6812_RGBW:
-          return I_32_RN_NEO_4 + offset;
-        case TYPE_WS2811_400KHZ:
-          return I_32_RN_400_3 + offset;
-        case TYPE_TM1814:
-          return I_32_RN_TM1_4 + offset;
-        case TYPE_TM1829:
-          return I_32_RN_TM2_3 + offset;
-        case TYPE_UCS8903:
-          return I_32_RN_UCS_3 + offset;
-        case TYPE_UCS8904:
-          return I_32_RN_UCS_4 + offset;
-      }
-      #endif
     }
+    else
+    {
+      //for driver: 0 = uart0, 1 = uart1, 2 = dma, 3 = bitbang
+      uint8_t offset = pins[0] - 1;
+
+      if (offset > 3)
+      {
+        offset = 3;
+      }
+
+      switch (busType)
+      {
+        case TYPE_WS2812_1CH_X3:
+        case TYPE_WS2812_2CH_X3:
+        case TYPE_WS2812_RGB:
+        case TYPE_WS2812_WWA:
+          return (I_8266_U0_NEO_3 + offset);
+
+        case TYPE_SK6812_RGBW:
+          return (I_8266_U0_NEO_4 + offset);
+
+        case TYPE_WS2811_400KHZ:
+          return (I_8266_U0_400_3 + offset);
+
+        case TYPE_TM1814:
+          return (I_8266_U0_TM1_4 + offset);
+
+        case TYPE_TM1829:
+          return (I_8266_U0_TM2_3 + offset);
+
+        case TYPE_UCS8903:
+          return (I_8266_U0_UCS_3 + offset);
+
+        case TYPE_UCS8904:
+          return (I_8266_U0_UCS_4 + offset);
+
+        default:
+          // RLM - to address code safety smell
+          break;
+      }
+    }
+
     return I_NONE;
   }
 };

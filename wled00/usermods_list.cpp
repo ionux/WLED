@@ -1,4 +1,5 @@
 #include "wled.h"
+
 /*
  * Register your v2 usermods here!
  *   (for v1 usermods using just usermod.cpp, you can ignore this file)
@@ -200,12 +201,13 @@
 
 void registerUsermods()
 {
-/*
+  /*
    * Add your usermod class name here
    * || || ||
    * \/ \/ \/
    */
   //usermods.add(new MyExampleUsermod());
+
   #ifdef USERMOD_BATTERY
   usermods.add(new UsermodBattery());
   #endif

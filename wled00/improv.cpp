@@ -19,14 +19,16 @@
 
 void parseWiFiCommand(char *rpcData);
 
-enum ImprovPacketType {
+enum ImprovPacketType
+{
   Current_State = 0x01,
   Error_State = 0x02,
   RPC_Command = 0x03,
   RPC_Response = 0x04
 };
 
-enum ImprovPacketByte {
+enum ImprovPacketByte
+{
   Version = 6,
   PacketType = 7,
   Length = 8,
@@ -38,7 +40,8 @@ static bool improvWifiScanRunning = false;
 #endif
 
 //blocking function to parse an Improv Serial packet
-void handleImprovPacket() {
+void handleImprovPacket()
+{
   uint8_t header[6] = {'I','M','P','R','O','V'};
 
   bool timeout = false;

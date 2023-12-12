@@ -380,20 +380,12 @@
 #ifndef MAX_LEDS
 #ifdef ESP8266
 #define MAX_LEDS 1664 //can't rely on memory limit to limit this to 1600 LEDs
-#else
-#define MAX_LEDS 8192
 #endif
 #endif
 
 #ifndef MAX_LED_MEMORY
   #ifdef ESP8266
     #define MAX_LED_MEMORY 4000
-  #else
-    #if defined(ARDUINO_ARCH_ESP32S2) || defined(ARDUINO_ARCH_ESP32C3)
-      #define MAX_LED_MEMORY 32000
-    #else
-      #define MAX_LED_MEMORY 64000
-    #endif
   #endif
 #endif
 
@@ -404,8 +396,6 @@
 // string temp buffer (now stored in stack locally)
 #ifdef ESP8266
 #define SETTINGS_STACK_BUF_SIZE 2048
-#else
-#define SETTINGS_STACK_BUF_SIZE 3608  // warning: quite a large value for stack
 #endif
 
 #ifdef WLED_USE_ETHERNET
@@ -413,8 +403,6 @@
 #else
   #ifdef ESP8266
     #define E131_MAX_UNIVERSE_COUNT 9
-  #else
-    #define E131_MAX_UNIVERSE_COUNT 12
   #endif
 #endif
 
@@ -432,8 +420,6 @@
 #ifndef WLED_PWM_FREQ
 #ifdef ESP8266
   #define WLED_PWM_FREQ    880 //PWM frequency proven as good for LEDs
-#else
-  #define WLED_PWM_FREQ  19531
 #endif
 #endif
 
@@ -442,8 +428,6 @@
 // Size of buffer for API JSON object (increase for more segments)
 #ifdef ESP8266
   #define JSON_BUFFER_SIZE 10240
-#else
-  #define JSON_BUFFER_SIZE 24576
 #endif
 
 //#define MIN_HEAP_SIZE (8k for AsyncWebServer)
@@ -452,16 +436,12 @@
 // Maximum size of node map (list of other WLED instances)
 #ifdef ESP8266
   #define WLED_MAX_NODES 24
-#else
-  #define WLED_MAX_NODES 150
 #endif
 
 //this is merely a default now and can be changed at runtime
 #ifndef LEDPIN
 #if defined(ESP8266) || (defined(ARDUINO_ARCH_ESP32) && defined(WLED_USE_PSRAM)) || defined(CONFIG_IDF_TARGET_ESP32C3)
   #define LEDPIN 2    // GPIO2 (D4) on Wemod D1 mini compatible boards
-#else
-  #define LEDPIN 16   // aligns with GPIO2 (D4) on Wemos D1 mini32 compatible boards
 #endif
 #endif
 

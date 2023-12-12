@@ -50,8 +50,12 @@ void handleUpload(AsyncWebServerRequest *request, const String& filename, size_t
     }
 
     request->_tempFile = WLED_FS.open(finalname, "w");
+
+#ifdef WLED_DEBUG
     DEBUG_PRINT(F("Uploading "));
     DEBUG_PRINTLN(finalname);
+#endif
+
     if (finalname.equals("/presets.json")) presetsModifiedTime = toki.second();
   }
   if (len) {
@@ -98,13 +102,18 @@ bool captivePortal(AsyncWebServerRequest *request)
   if (!request->hasHeader("Host")) return false;
   hostH = request->getHeader("Host")->value();
 
-  if (!isIp(hostH) && hostH.indexOf("wled.me") < 0 && hostH.indexOf(cmDNS) < 0) {
+  if (!isIp(hostH) && hostH.indexOf("wled.me") < 0 && hostH.indexOf(cmDNS) < 0)
+  {
+#ifdef WLED_DEBUG
     DEBUG_PRINTLN("Captive portal");
+#endif
+
     AsyncWebServerResponse *response = request->beginResponse(302);
     response->addHeader(F("Location"), F("http://4.3.2.1"));
     request->send(response);
     return true;
   }
+
   return false;
 }
 
@@ -190,14 +199,9 @@ void initServer()
 
     const String& url = request->url();
     isConfig = url.indexOf("cfg") > -1;
-    if (!isConfig) {
-      /*
-      #ifdef WLED_DEBUG
-        DEBUG_PRINTLN(F("Serialized HTTP"));
-        serializeJson(root,Serial);
-        DEBUG_PRINTLN();
-      #endif
-      */
+
+    if (!isConfig)
+    {
       verboseResponse = deserializeState(root);
     } else {
       if (!correctPIN && strlen(settingsPIN)>0) {
@@ -205,8 +209,10 @@ void initServer()
         releaseJSONBufferLock();
         return;
       }
+
       verboseResponse = deserializeConfig(root); //use verboseResponse to determine whether cfg change should be saved immediately
     }
+
     releaseJSONBufferLock();
 
     if (verboseResponse) {
@@ -383,9 +389,12 @@ void initServer()
   #endif
 
   //called when the url is not defined here, ajax-in; get-settings
-  server.onNotFound([](AsyncWebServerRequest *request){
+  server.onNotFound([](AsyncWebServerRequest *request)
+  {
+#ifdef WLED_DEBUG
     DEBUG_PRINTLN("Not-Found HTTP call:");
     DEBUG_PRINTLN("URI: " + request->url());
+#endif
     if (captivePortal(request)) return;
 
     //make API CORS compatible
@@ -421,9 +430,10 @@ bool handleIfNoneMatchCacheHeader(AsyncWebServerRequest* request)
 
 void setStaticContentCacheHeaders(AsyncWebServerResponse *response)
 {
-  char tmp[12];
+  char tmp[12] = {0};
+
   // https://medium.com/@codebyamir/a-web-developers-guide-to-browser-caching-cc41f3b73e7c
-  #ifndef WLED_DEBUG
+#ifndef WLED_DEBUG
   //this header name is misleading, "no-cache" will not disable cache,
   //it just revalidates on every load using the "If-None-Match" header with the last ETag value
   response->addHeader(F("Cache-Control"),"no-cache");
