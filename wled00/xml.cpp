@@ -72,64 +72,98 @@ void XML_response(AsyncWebServerRequest *request, char* dest)
   if (request != nullptr) request->send(200, "text/xml", obuf);
 }
 
-void extractPin(JsonObject &obj, const char *key) {
-  if (obj[key].is<JsonArray>()) {
+void extractPin(JsonObject &obj, const char *key)
+{
+  if (obj[key].is<JsonArray>())
+  {
     JsonArray pins = obj[key].as<JsonArray>();
-    for (JsonVariant pv : pins) {
-      if (pv.as<int>() > -1) { oappend(","); oappendi(pv.as<int>()); }
+
+    for (JsonVariant pv : pins)
+    {
+      if (pv.as<int>() > -1)
+      {
+        oappend(","); oappendi(pv.as<int>());
+      }
     }
-  } else {
-    if (obj[key].as<int>() > -1) { oappend(","); oappendi(obj[key].as<int>()); }
+
+    return;
+  }
+
+  if (obj[key].as<int>() > -1)
+  {
+    oappend(","); oappendi(obj[key].as<int>());
   }
 }
 
 // oappend used pins by scanning JsonObject (1 level deep)
 void fillUMPins(JsonObject &mods)
 {
-  for (JsonPair kv : mods) {
+  for (JsonPair kv : mods)
+  {
     // kv.key() is usermod name or subobject key
     // kv.value() is object itself
     JsonObject obj = kv.value();
-    if (!obj.isNull()) {
-      // element is an JsonObject
-      if (!obj["pin"].isNull()) {
-        extractPin(obj, "pin");
-      } else {
-        // scan keys (just one level deep as is possible with usermods)
-        for (JsonPair so : obj) {
-          const char *key = so.key().c_str();
-          if (strstr(key, "pin")) {
-            // we found a key containing "pin" substring
-            if (strlen(strstr(key, "pin")) == 3) {
-              // and it is at the end, we found another pin
-              extractPin(obj, key);
-              continue;
-            }
-          }
-          if (!obj[so.key()].is<JsonObject>()) continue;
-          JsonObject subObj = obj[so.key()];
-          if (!subObj["pin"].isNull()) {
-            // get pins from subobject
-            extractPin(subObj, "pin");
-          }
+
+    if (obj.isNull())
+    {
+      continue;
+    }
+
+    // element is an JsonObject
+    if (!obj["pin"].isNull())
+    {
+      extractPin(obj, "pin");
+      continue;
+    }
+
+    // scan keys (just one level deep as is possible with usermods)
+    for (JsonPair so : obj)
+    {
+      const char *key = so.key().c_str();
+
+      if (strstr(key, "pin"))
+      {
+        // we found a key containing "pin" substring
+        if (strlen(strstr(key, "pin")) == 3)
+        {
+          // and it is at the end, we found another pin
+          extractPin(obj, key);
+          continue;
         }
+      }
+
+      if (!obj[so.key()].is<JsonObject>())
+      {
+        continue;
+      }
+
+      JsonObject subObj = obj[so.key()];
+
+      if (!subObj["pin"].isNull())
+      {
+        // get pins from subobject
+        extractPin(subObj, "pin");
       }
     }
   }
 }
 
-void appendGPIOinfo() {
-  char nS[8];
+void appendGPIOinfo()
+{
+  char nS[8] = {0};
 
   oappend(SET_F("d.um_p=[-1")); // has to have 1 element
+
   if (i2c_sda > -1 && i2c_scl > -1) {
     oappend(","); oappend(itoa(i2c_sda,nS,10));
     oappend(","); oappend(itoa(i2c_scl,nS,10));
   }
+
   if (spi_mosi > -1 && spi_sclk > -1) {
     oappend(","); oappend(itoa(spi_mosi,nS,10));
     oappend(","); oappend(itoa(spi_sclk,nS,10));
   }
+
   // usermod pin reservations will become unnecessary when settings pages will read cfg.json directly
   if (requestJSONBufferLock(6)) {
     // if we can't allocate JSON buffer ignore usermod pins
@@ -138,6 +172,7 @@ void appendGPIOinfo() {
     if (!mods.isNull()) fillUMPins(mods);
     releaseJSONBufferLock();
   }
+
   oappend(SET_F("];"));
 
   // add reserved and usermod pins as d.um_p array
@@ -336,7 +371,7 @@ void getSettingsJS(byte subPage, char* dest)
 
   if (subPage == SUBPAGE_LEDS)
   {
-    char nS[32];
+    char nS[32] = {0};
 
     appendGPIOinfo();
 

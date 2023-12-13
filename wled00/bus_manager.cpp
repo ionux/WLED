@@ -6,6 +6,7 @@
 
 #include <Arduino.h>
 #include <IPAddress.h>
+
 #include "const.h"
 #include "pin_manager.h"
 #include "bus_wrapper.h"
@@ -84,7 +85,7 @@ uint8_t IRAM_ATTR ColorOrderMap::getPixelColorOrder(uint16_t pix, uint8_t defaul
 
   for (uint8_t i = 0; i < _count; i++)
   {
-    if (pix >= _mappings[i].start && pix < (_mappings[i].start + _mappings[i].len))
+    if ((pix >= _mappings[i].start) && (pix < (_mappings[i].start + _mappings[i].len)))
     {
       return _mappings[i].colorOrder | (swapW << 4);
     }
@@ -98,25 +99,43 @@ uint32_t Bus::autoWhiteCalc(uint32_t c)
 {
   uint8_t aWM = _autoWhiteMode;
 
-  if (_gAWM < 255) aWM = _gAWM;
+  if (_gAWM < 255)
+  {
+    aWM = _gAWM;
+  }
 
-  if (aWM == RGBW_MODE_MANUAL_ONLY) return c;
+  if (aWM == RGBW_MODE_MANUAL_ONLY)
+  {
+    return c;
+  }
 
   uint8_t w = W(c);
 
   //ignore auto-white calculation if w>0 and mode DUAL (DUAL behaves as BRIGHTER if w==0)
-  if (w > 0 && aWM == RGBW_MODE_DUAL) return c;
+  if ((w > 0) && (aWM == RGBW_MODE_DUAL))
+  {
+    return c;
+  }
 
   uint8_t r = R(c);
   uint8_t g = G(c);
   uint8_t b = B(c);
   
-  if (aWM == RGBW_MODE_MAX) return RGBW32(r, g, b, r > g ? (r > b ? r : b) : (g > b ? g : b)); // brightest RGB channel
-  
+  if (aWM == RGBW_MODE_MAX)
+  {
+    return RGBW32(r, g, b, r > g ? (r > b ? r : b) : (g > b ? g : b)); // brightest RGB channel
+  }
+
   w = r < g ? (r < b ? r : b) : (g < b ? g : b);
   
-  if (aWM == RGBW_MODE_AUTO_ACCURATE) { r -= w; g -= w; b -= w; } // Subtract w in ACCURATE mode
-  
+  if (aWM == RGBW_MODE_AUTO_ACCURATE)
+  {
+    r -= w;
+    g -= w;
+    b -= w; 
+    // Subtract w in ACCURATE mode
+  }
+
   return RGBW32(r, g, b, w);
 }
 
@@ -124,7 +143,8 @@ uint32_t Bus::autoWhiteCalc(uint32_t c)
 uint8_t *Bus::allocData(size_t size)
 {
   // RLM - check for double free
-  if (_data) {
+  if (_data)
+  {
     free(_data); // Should not happen, but for safety
   }
 
@@ -210,65 +230,71 @@ void BusDigital::show()
 
   // Should be _data != nullptr, but that causes ~20% FPS drop
   // RLM - investigate why
-  if (_buffering)
+  if (!_buffering)
   {
-    size_t channels = Bus::hasWhite(_type) + (3 * Bus::hasRGB(_type));
+    // faster if buffer consistency is not important
+    // RLM - investivate for bugs related to consistence mentioned above
+    PolyBus::show(_busPtr, _iType, !_buffering);
 
-    for (size_t i = 0; i < _len; i++)
+    return;
+  }
+
+  size_t channels = Bus::hasWhite(_type) + (3 * Bus::hasRGB(_type));
+
+  for (size_t i = 0; i < _len; i++)
+  {
+    size_t offset = i * channels;
+    uint8_t co = _colorOrderMap.getPixelColorOrder((i + _start), _colorOrder);
+    uint32_t c = 0;
+
+    // Map to correct IC, each controls 3 LEDs (_len is always a multiple of 3)
+    if (_type == TYPE_WS2812_1CH_X3)
     {
-      size_t offset = i * channels;
-      uint8_t co = _colorOrderMap.getPixelColorOrder((i + _start), _colorOrder);
-      uint32_t c = 0;
-
-      // Map to correct IC, each controls 3 LEDs (_len is always a multiple of 3)
-      if (_type == TYPE_WS2812_1CH_X3)
+      switch (i % 3)
       {
-        switch (i % 3)
-        {
-          case 0:
-            c = RGBW32(_data[offset], _data[offset + 1], _data[offset + 2], 0);
-            break;
-          case 1:
-            c = RGBW32(_data[offset - 1], _data[offset]  , _data[offset + 1], 0);
-            break;
-          case 2:
-            c = RGBW32(_data[offset - 2], _data[offset - 1], _data[offset], 0);
-            break;
-          default:
-            // RLM - should not be here but adding for safety compliance code smell
-            break;
-        }
+        case 0:
+          c = RGBW32(_data[offset], _data[offset + 1], _data[offset + 2], 0);
+          break;
+        case 1:
+          c = RGBW32(_data[offset - 1], _data[offset]  , _data[offset + 1], 0);
+          break;
+        case 2:
+          c = RGBW32(_data[offset - 2], _data[offset - 1], _data[offset], 0);
+          break;
+        default:
+          // RLM - should not be here but adding for safety compliance code smell
+          break;
       }
-      else
-      {
-        c = RGBW32(_data[offset], _data[offset + 1], _data[offset + 2], ((Bus::hasWhite(_type)) ? _data[offset + 3] : 0));
-      }
-
-      uint16_t pix = i;
-
-      if (_reversed)
-      {
-        pix = _len - pix - 1;
-      }
-
-      pix += _skip;
-
-      PolyBus::setPixelColor(_busPtr, _iType, pix, c, co);
     }
+    else
+    {
+      c = RGBW32(_data[offset], _data[offset + 1], _data[offset + 2], ((Bus::hasWhite(_type)) ? _data[offset + 3] : 0));
+    }
+
+    uint16_t pix = i;
+
+    if (_reversed)
+    {
+      pix = _len - pix - 1;
+    }
+
+    pix += _skip;
+
+    PolyBus::setPixelColor(_busPtr, _iType, pix, c, co);
+  }
 
 #if !defined(STATUSLED) || STATUSLED >= 0
-    if (_skip)
-    {
-      // Paint skipped pixels black
-      PolyBus::setPixelColor(_busPtr, _iType, 0, 0, _colorOrderMap.getPixelColorOrder(_start, _colorOrder));
-    }
+  if (_skip)
+  {
+    // Paint skipped pixels black
+    PolyBus::setPixelColor(_busPtr, _iType, 0, 0, _colorOrderMap.getPixelColorOrder(_start, _colorOrder));
+  }
 #endif
 
-    // Paint skipped pixels black
-    for (int i = 1; i < _skip; i++) 
-    {
-      PolyBus::setPixelColor(_busPtr, _iType, i, 0, _colorOrderMap.getPixelColorOrder(_start, _colorOrder));
-    }
+  // Paint skipped pixels black
+  for (int i = 1; i < _skip; i++) 
+  {
+    PolyBus::setPixelColor(_busPtr, _iType, i, 0, _colorOrderMap.getPixelColorOrder(_start, _colorOrder));
   }
 
   // faster if buffer consistency is not important
@@ -395,50 +421,50 @@ void IRAM_ATTR BusDigital::setPixelColor(uint16_t pix, uint32_t c)
     {
       _data[offset] = W(c);
     }
+
+    return;
   }
-  else
+
+  if (_reversed)
   {
-    if (_reversed)
-    {
-      // RLM - check for wrap
-      pix = _len - (pix - 1);
-    }
-
-    pix += _skip;
-
-    uint8_t co = _colorOrderMap.getPixelColorOrder((pix + _start), _colorOrder);
-
-    if (_type == TYPE_WS2812_1CH_X3)
-    {
-      // map to correct IC, each controls 3 LEDs
-      uint16_t pOld = pix;
-
-      // RLM - expands to a div, investigate efficiency
-      pix = IC_INDEX_WS2812_1CH_3X(pix);
-
-      uint32_t cOld = restoreColorLossy(PolyBus::getPixelColor(_busPtr, _iType, pix, co), _bri);
-
-      // change only the single channel (TODO: this can cause loss because of get/set)
-      // RLM - investigate why. Memory leak or bug (or both?)?
-      switch (pOld % 3)
-      {
-        case 0:
-          c = RGBW32(R(cOld), W(c)   , B(cOld), 0);
-          break;
-        case 1:
-          c = RGBW32(W(c)   , G(cOld), B(cOld), 0);
-          break;
-        case 2:
-          c = RGBW32(R(cOld), G(cOld), W(c)   , 0);
-          break;
-        default:
-          // RLM - adding for safety compliance & code smell
-          break;
-      }
-    }
-
-    PolyBus::setPixelColor(_busPtr, _iType, pix, c, co);
+    // RLM - check for wrap
+    pix = _len - (pix - 1);
   }
+
+  pix += _skip;
+
+  uint8_t co = _colorOrderMap.getPixelColorOrder((pix + _start), _colorOrder);
+
+  if (_type == TYPE_WS2812_1CH_X3)
+  {
+    // map to correct IC, each controls 3 LEDs
+    uint16_t pOld = pix;
+
+    // RLM - expands to a div, investigate efficiency
+    pix = IC_INDEX_WS2812_1CH_3X(pix);
+
+    uint32_t cOld = restoreColorLossy(PolyBus::getPixelColor(_busPtr, _iType, pix, co), _bri);
+
+    // change only the single channel (TODO: this can cause loss because of get/set)
+    // RLM - investigate why. Memory leak or bug (or both?)?
+    switch (pOld % 3)
+    {
+      case 0:
+        c = RGBW32(R(cOld), W(c)   , B(cOld), 0);
+        break;
+      case 1:
+        c = RGBW32(W(c)   , G(cOld), B(cOld), 0);
+        break;
+      case 2:
+        c = RGBW32(R(cOld), G(cOld), W(c)   , 0);
+        break;
+      default:
+        // RLM - adding for safety compliance & code smell
+        break;
+    }
+  }
+
+  PolyBus::setPixelColor(_busPtr, _iType, pix, c, co);
 }
 
 
@@ -461,7 +487,9 @@ uint32_t BusDigital::getPixelColor(uint16_t pix)
     if (!Bus::hasRGB(_type))
     {
       c = RGBW32(_data[offset], _data[offset], _data[offset], _data[offset]);
-    } else {
+    }
+    else
+    {
       c = RGBW32(_data[offset], _data[offset + 1], _data[offset + 2], ((Bus::hasWhite(_type)) ? _data[offset + 3] : 0));
     }
 
@@ -585,15 +613,15 @@ BusPwm::BusPwm(BusConfig &bc)
 #ifdef ESP8266
   analogWriteRange(255);  // Same range as one RGB channel
   analogWriteFreq(_frequency);
-#else
-  _ledcStart = pinManager.allocateLedc(numPins);
+// #else
+//   _ledcStart = pinManager.allocateLedc(numPins);
 
-  if (_ledcStart == 255)
-  {
-    //no more free LEDC channels
-    deallocatePins();
-    return;
-  }
+//   if (_ledcStart == 255)
+//   {
+//     //no more free LEDC channels
+//     deallocatePins();
+//     return;
+//   }
 #endif
 
   for (uint8_t i = 0; i < numPins; i++)
@@ -738,15 +766,21 @@ uint32_t BusPwm::getPixelColor(uint16_t pix)
 
 void BusPwm::show()
 {
-  if (!_valid) return;
-
+  if (!_valid)
+  {
+    return;
+  }
+  
   uint8_t numPins = NUM_PWM_PINS(_type);
 
   for (uint8_t i = 0; i < numPins; i++)
   {
     uint8_t scaled = (_data[i] * _bri) / 255;
 
-    if (_reversed) scaled = 255 - scaled;
+    if (_reversed)
+    {
+      scaled = 255 - scaled;
+    }
 
 #ifdef ESP8266
     analogWrite(_pins[i], scaled);
@@ -781,7 +815,10 @@ void BusPwm::deallocatePins()
   {
     pinManager.deallocatePin(_pins[i], PinOwner::BusPwm);
 
-    if (!pinManager.isPinOk(_pins[i])) continue;
+    if (!pinManager.isPinOk(_pins[i]))
+    {
+      continue;
+    }
 
 #ifdef ESP8266
     digitalWrite(_pins[i], LOW); //turn off PWM interrupt
@@ -920,7 +957,10 @@ uint32_t BusNetwork::getPixelColor(uint16_t pix)
 
 void BusNetwork::show()
 {
-  if (!_valid || !canShow()) return;
+  if (!_valid || !canShow())
+  {
+    return;
+  }
 
   _broadcastLock = true;
   realtimeBroadcast(_UDPtype, _client, _len, _data, _bri, _rgbw);
@@ -957,6 +997,7 @@ uint32_t BusManager::memUsage(BusConfig &bc)
   if (type > 15 && type < 32)
   { // digital types
     if (type == TYPE_UCS8903 || type == TYPE_UCS8904) len *= 2; // 16-bit LEDs
+
 #ifdef ESP8266
       if (bc.pins[0] == 3)
       {
@@ -969,23 +1010,30 @@ uint32_t BusManager::memUsage(BusConfig &bc)
       if (type > 28) return len*4; //RGB
       
       return len*3;
+
 #else //ESP32 RMT uses double buffer?
       if (type > 28) return len*8; //RGBW
       return len*6;
 #endif
   }
 
-  if (type > 31 && type < 48) return 5;
+  if (type > 31 && type < 48)
+  {
+    return 5;
+  }
 
-  return len*3; //RGB
+  return (len * 3); //RGB
 }
 
 
 int BusManager::add(BusConfig &bc)
 {
-  if (getNumBusses() - getNumVirtualBusses() >= WLED_MAX_BUSSES) return -1;
+  if ((getNumBusses() - getNumVirtualBusses()) >= WLED_MAX_BUSSES)
+  {
+    return -1;
+  }
 
-  if (bc.type >= TYPE_NET_DDP_RGB && bc.type < 96)
+  if ((bc.type >= TYPE_NET_DDP_RGB) && (bc.type < 96))
   {
     busses[numBusses] = new BusNetwork(bc);
   }
@@ -1016,10 +1064,19 @@ void BusManager::removeAll()
 
   //prevents crashes due to deleting busses while in use.
   // RLM - ensure this is working correctly
-  while (!canAllShow()) yield();
+  while (!canAllShow())
+  {
+    yield();
+  }
 
   // RLM - validate memory deallocation!!!!
-  for (uint8_t i = 0; i < numBusses; i++) delete busses[i];
+  for (uint8_t i = 0; i < numBusses; i++)
+  {
+    if (busses[i])
+    {
+      delete busses[i];
+    }
+  }
 
   numBusses = 0;
 }
@@ -1029,7 +1086,10 @@ void BusManager::show()
 {
   for (uint8_t i = 0; i < numBusses; i++)
   {
-    busses[i]->show();
+    if (busses[i])
+    {
+      busses[i]->show();
+    }
   }
 }
 
@@ -1038,7 +1098,10 @@ void BusManager::setStatusPixel(uint32_t c)
 {
   for (uint8_t i = 0; i < numBusses; i++)
   {
-    busses[i]->setStatusPixel(c);
+    if (busses[i])
+    {
+      busses[i]->setStatusPixel(c);
+    }
   }
 }
 
@@ -1048,11 +1111,23 @@ void IRAM_ATTR BusManager::setPixelColor(uint16_t pix, uint32_t c)
   for (uint8_t i = 0; i < numBusses; i++)
   {
     Bus* b = busses[i];
+
+    if (!b)
+    {
+      continue;
+    }
+
     uint16_t bstart = b->getStart();
 
-    if (pix < bstart || pix >= bstart + b->getLength()) continue;
+    if ((pix < bstart) || (pix >= (bstart + b->getLength())))
+    {
+      continue;
+    }
 
-    busses[i]->setPixelColor(pix - bstart, c);
+    if (busses[i])
+    {
+      busses[i]->setPixelColor(pix - bstart, c);
+    }
   }
 }
 
@@ -1061,19 +1136,28 @@ void BusManager::setBrightness(uint8_t b)
 {
   for (uint8_t i = 0; i < numBusses; i++)
   {
-    busses[i]->setBrightness(b);
+    if (busses[i])
+    {
+      busses[i]->setBrightness(b);
+    }
   }
 }
 
 
 void BusManager::setSegmentCCT(int16_t cct, bool allowWBCorrection)
 {
-  if (cct > 255) cct = 255;
+  if (cct > 255)
+  {
+    cct = 255;
+  }
 
   if (cct >= 0)
   {
     //if white balance correction allowed, save as kelvin value instead of 0-255
-    if (allowWBCorrection) cct = 1900 + (cct << 5);
+    if (allowWBCorrection)
+    {
+      cct = 1900 + (cct << 5);
+    }
   }
   else
   {
@@ -1088,8 +1172,13 @@ uint32_t BusManager::getPixelColor(uint16_t pix)
 {
   for (uint8_t i = 0; i < numBusses; i++)
   {
-    // RLM - validate b is not NULL
     Bus* b = busses[i];
+
+    if (!b)
+    {
+      continue;
+    }
+
     uint16_t bstart = b->getStart();
 
     if ((pix < bstart) || (pix >= (bstart + b->getLength())))

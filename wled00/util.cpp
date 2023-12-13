@@ -6,6 +6,11 @@
 //helper to get int value at a position in string
 int getNumVal(const String* req, uint16_t pos)
 {
+  if (req == nullptr)
+  {
+    return -999;
+  }
+
   // RLM - check if req object is null
   return req->substring(pos + 3).toInt();
 }
@@ -14,7 +19,7 @@ int getNumVal(const String* req, uint16_t pos)
 //helper to get int value with in/decrementing support via ~ syntax
 void parseNumber(const char* str, byte* val, byte minv, byte maxv)
 {
-  if ((str == nullptr) || (str[0] == '\0'))
+  if ((str == nullptr) || (val == nullptr) || (str[0] == '\0'))
   {
     return;
   }
@@ -146,6 +151,11 @@ bool getVal(JsonVariant elem, byte* val, byte vmin, byte vmax)
 
 bool updateVal(const char* req, const char* key, byte* val, byte minv, byte maxv)
 {
+  if ((req == nullptr) || (key == nullptr) || (val == nullptr))
+  {
+    return false;
+  }
+
   const char *v = strstr(req, key);
 
   if (v)
@@ -163,6 +173,11 @@ bool updateVal(const char* req, const char* key, byte* val, byte minv, byte maxv
 //append a numeric setting to string buffer
 void sappend(char stype, const char* key, int val)
 {
+  if ((key == nullptr))
+  {
+    return;
+  }
+
   char ds[] = "d.Sf.";
 
   switch(stype)
@@ -681,6 +696,11 @@ void checkSettingsPIN(const char* pin)
 
 uint16_t crc16(const unsigned char* data_p, size_t length)
 {
+  if ((data_p == nullptr))
+  {
+    return 0xFFFF;
+  }
+
   uint8_t x = 0;
   uint16_t crc = 0xFFFF;
 
@@ -691,7 +711,7 @@ uint16_t crc16(const unsigned char* data_p, size_t length)
 
   while (length--)
   {
-    x = crc >> 8 ^ *data_p++;
+    x = (crc >> 8) ^ *data_p++;
     x ^= x >> 4;
     crc = (crc << 8) ^ ((uint16_t)(x << 12)) ^ ((uint16_t)(x << 5)) ^ ((uint16_t)x);
   }
@@ -738,22 +758,26 @@ um_data_t* simulateSound(uint8_t simulationId)
     // NOTE!!!
     // This may change as AudioReactive usermod may change
     um_data = new um_data_t;
-    um_data->u_size = 8;
-    um_data->u_type = new um_types_t[um_data->u_size];
-    um_data->u_data = new void*[um_data->u_size];
-    um_data->u_data[0] = &volumeSmth;
-    um_data->u_data[1] = &volumeRaw;
-    um_data->u_data[2] = fftResult;
-    um_data->u_data[3] = &samplePeak;
-    um_data->u_data[4] = &FFT_MajorPeak;
-    um_data->u_data[5] = &my_magnitude;
-    um_data->u_data[6] = &maxVol;
-    um_data->u_data[7] = &binNum;
+
+    if (um_data)
+    {
+      um_data->u_size = 8;
+      um_data->u_type = new um_types_t[um_data->u_size];
+      um_data->u_data = new void*[um_data->u_size];
+      um_data->u_data[0] = &volumeSmth;
+      um_data->u_data[1] = &volumeRaw;
+      um_data->u_data[2] = fftResult;
+      um_data->u_data[3] = &samplePeak;
+      um_data->u_data[4] = &FFT_MajorPeak;
+      um_data->u_data[5] = &my_magnitude;
+      um_data->u_data[6] = &maxVol;
+      um_data->u_data[7] = &binNum;
+    }
   }
   else
   {
     // get arrays from um_data
-    fftResult =  (uint8_t*)um_data->u_data[2];
+    fftResult = (uint8_t*)um_data->u_data[2];
   }
 
   uint32_t ms = millis();

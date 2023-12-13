@@ -8,103 +8,103 @@
 uint16_t wsLiveClientId = 0;
 unsigned long wsLastLiveTime = 0;
 
-//uint8_t* wsFrameBuffer = nullptr;
-
 #define WS_LIVE_INTERVAL 40
 
 void wsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len)
 {
-  if (type == WS_EVT_CONNECT)
-  {
-    //client connected
-#ifdef WLED_DEBUG
-    DEBUG_PRINTLN(F("WS client connected."));
-#endif
+  // RLM - server doesn't seem to be used.
+  (void)server;
 
-    sendDataWs(client);
+  if (!client)
+  {
+    return;
   }
-  else if (type == WS_EVT_DISCONNECT)
-  {
-    //client disconnected
-    if (client->id() == wsLiveClientId)
-    {
-      wsLiveClientId = 0;
-    }
 
-#ifdef WLED_DEBUG
-    DEBUG_PRINTLN(F("WS client disconnected."));
-#endif
-  }
-  else if (type == WS_EVT_DATA)
+  switch (type)
   {
-    // data packet
-    AwsFrameInfo *info = (AwsFrameInfo*)arg;
+    case WS_EVT_CONNECT:
+      //client connected
+      sendDataWs(client);
+      break;
 
-    if (info->final && (info->index == 0) && (info->len == len))
-    {
-      // the whole message is in a single frame and we got all of its data (max. 1450 bytes)
-      if (info->opcode == WS_TEXT)
+    case WS_EVT_DISCONNECT:
+      //client disconnected
+      if (client->id() == wsLiveClientId)
       {
-        if ((len > 0) && (len < 10) && (data[0] == 'p'))
+        wsLiveClientId = 0;
+      }
+      break;
+
+    case WS_EVT_DATA:
+      // data packet
+      AwsFrameInfo *info = (AwsFrameInfo*)arg;
+
+      if (info->final && (info->index == 0) && (info->len == len))
+      {
+        // the whole message is in a single frame and we got all of its data (max. 1450 bytes)
+        if (info->opcode == WS_TEXT)
         {
-          // application layer ping/pong heartbeat.
-          // client-side socket layer ping packets are unresponded (investigate)
-          client->text(F("pong"));
-
-          return;
-        }
-
-        bool verboseResponse = false;
-
-        if (!requestJSONBufferLock(11))
-        {
-          return;
-        }
-
-        DeserializationError error = deserializeJson(doc, data, len);
-
-        JsonObject root = doc.as<JsonObject>();
-
-        if (error || root.isNull())
-        {
-          releaseJSONBufferLock();
-
-          return;
-        }
-
-        if (root["v"] && root.size() == 1)
-        {
-          //if the received value is just "{"v":true}", send only to this client
-          verboseResponse = true;
-        }
-        else if (root.containsKey("lv"))
-        {
-          wsLiveClientId = root["lv"] ? client->id() : 0;
-        }
-        else
-        {
-          verboseResponse = deserializeState(root);
-        }
-
-        releaseJSONBufferLock(); // will clean fileDoc
-
-        if (!interfaceUpdateCallMode)
-        {
-          // individual client response only needed if no WS broadcast soon
-          if (verboseResponse)
+          if ((len > 0) && (len < 10) && (data[0] == 'p'))
           {
-            sendDataWs(client);
+            // application layer ping/pong heartbeat.
+            // client-side socket layer ping packets are unresponded (investigate)
+            client->text(F("pong"));
+
+            return;
+          }
+
+          bool verboseResponse = false;
+
+          if (!requestJSONBufferLock(11))
+          {
+            return;
+          }
+
+          DeserializationError error = deserializeJson(doc, data, len);
+
+          JsonObject root = doc.as<JsonObject>();
+
+          if (error || root.isNull())
+          {
+            releaseJSONBufferLock();
+
+            return;
+          }
+
+          if (root["v"] && root.size() == 1)
+          {
+            //if the received value is just "{"v":true}", send only to this client
+            verboseResponse = true;
+          }
+          else if (root.containsKey("lv"))
+          {
+            wsLiveClientId = root["lv"] ? client->id() : 0;
           }
           else
           {
-            // we have to send something back otherwise WS connection closes
-            client->text(F("{\"success\":true}"));
+            verboseResponse = deserializeState(root);
+          }
+
+          releaseJSONBufferLock(); // will clean fileDoc
+
+          if (!interfaceUpdateCallMode)
+          {
+            // individual client response only needed if no WS broadcast soon
+            if (verboseResponse)
+            {
+              sendDataWs(client);
+            }
+            else
+            {
+              // we have to send something back otherwise WS connection closes
+              client->text(F("{\"success\":true}"));
+            }
           }
         }
+
+        return;
       }
-    }
-    else
-    {
+
       if ((info->index + len) == info->len)
       {
         if (info->final)
@@ -115,29 +115,19 @@ void wsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType 
           }
         }
       }
+      break;
 
-#ifdef WLED_DEBUG
-      DEBUG_PRINTLN(F("WS multipart message."));
-#endif
-    }
-  }
-  else if (type == WS_EVT_ERROR)
-  {
-    //error was received from the other end
-#ifdef WLED_DEBUG
-    DEBUG_PRINTLN(F("WS error."));
-#endif
-  }
-  else if (type == WS_EVT_PONG)
-  {
-    //pong message was received (in response to a ping request maybe)
-#ifdef WLED_DEBUG
-    DEBUG_PRINTLN(F("WS pong."));
-#endif
-  }
-  else
-  {
-    // RLM - addressing code smell
+    case WS_EVT_ERROR:
+      //error was received from the other end
+      break;
+
+    case WS_EVT_PONG:
+      //pong message was received (in response to a ping request maybe)
+      break;
+
+    default:
+      // RLM - addressing code smell
+      break;
   }
 }
 
@@ -163,24 +153,11 @@ void sendDataWs(AsyncWebSocketClient *client)
   serializeInfo(info);
 
   size_t len = measureJson(doc);
-
-#ifdef WLED_DEBUG
-  DEBUG_PRINTF("JSON buffer size: %u for WS request (%u).\n", doc.memoryUsage(), len);
-#endif
-
   size_t heap1 = ESP.getFreeHeap();
-
-#ifdef WLED_DEBUG
-  DEBUG_PRINT(F("heap ")); DEBUG_PRINTLN(ESP.getFreeHeap());
-#endif
 
 #ifdef ESP8266
   if (len > heap1)
   {
-#ifdef WLED_DEBUG
-    DEBUG_PRINTLN(F("Out of memory (WS)!"));
-#endif
-
     return;
   }
 #endif
@@ -190,21 +167,13 @@ void sendDataWs(AsyncWebSocketClient *client)
 
 #ifdef ESP8266
   size_t heap2 = ESP.getFreeHeap();
-
-#ifdef WLED_DEBUG
-  DEBUG_PRINT(F("heap ")); DEBUG_PRINTLN(ESP.getFreeHeap());
-#endif
-#else
-  size_t heap2 = 0; // ESP32 variants do not have the same issue and will work without checking heap allocation
+// #else
+//   size_t heap2 = 0; // ESP32 variants do not have the same issue and will work without checking heap allocation
 #endif
 
   if (!buffer || ((heap1 - heap2) < len))
   {
     releaseJSONBufferLock();
-
-#ifdef WLED_DEBUG
-    DEBUG_PRINTLN(F("WS buffer allocation failed."));
-#endif
 
     ws.closeAll(1013); //code 1013 = temporary overload, try again later
     ws.cleanupClients(0); //disconnect all clients to release memory
@@ -218,25 +187,13 @@ void sendDataWs(AsyncWebSocketClient *client)
   // RLM - check return code
   serializeJson(doc, (char *)buffer->get(), len);
 
-#ifdef WLED_DEBUG
-  DEBUG_PRINT(F("Sending WS data "));
-#endif
-
   if (client)
   {
     client->text(buffer);
-
-#ifdef WLED_DEBUG
-    DEBUG_PRINTLN(F("to a single client."));
-#endif
   }
   else
   {
     ws.textAll(buffer);
-
-#ifdef WLED_DEBUG
-    DEBUG_PRINTLN(F("to multiple clients."));
-#endif
   }
 
   buffer->unlock();
@@ -245,6 +202,7 @@ void sendDataWs(AsyncWebSocketClient *client)
 
   releaseJSONBufferLock();
 }
+
 
 bool sendLiveLedsWs(uint32_t wsClient)
 {
@@ -257,11 +215,11 @@ bool sendLiveLedsWs(uint32_t wsClient)
 
   size_t used = strip.getLengthTotal();
 
-#ifdef ESP8266
+//#ifdef ESP8266
   const size_t MAX_LIVE_LEDS_WS = 256U;
-#else
-  const size_t MAX_LIVE_LEDS_WS = 1024U;
-#endif
+// #else
+//   const size_t MAX_LIVE_LEDS_WS = 1024U;
+//#endif
 
   // RLM - refactor div
   size_t n = ((used - 1) / MAX_LIVE_LEDS_WS) + 1; //only serve every n'th LED if count over MAX_LIVE_LEDS_WS
@@ -354,8 +312,8 @@ void handleWs()
   {
 #ifdef ESP8266
     ws.cleanupClients(3);
-#else
-    ws.cleanupClients();
+// #else
+//     ws.cleanupClients();
 #endif
 
     bool success = true;

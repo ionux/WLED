@@ -11,7 +11,7 @@
 
 void getStringFromJson(char* dest, const char* src, size_t len)
 {
-  if (src != nullptr)
+  if ((src != nullptr) && (dest != nullptr))
   {
     strlcpy(dest, src, len);
   }

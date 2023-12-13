@@ -7,16 +7,16 @@
 
 #include "const.h"
 
-#define GET_BIT(var,bit)    (((var)>>(bit))&0x01)
-#define SET_BIT(var,bit)    ((var)|=(uint16_t)(0x0001<<(bit)))
-#define UNSET_BIT(var,bit)  ((var)&=(~(uint16_t)(0x0001<<(bit))))
+#define GET_BIT(var, bit)    (((var) >> (bit)) & 0x01)
+#define SET_BIT(var, bit)    ((var) |= (uint16_t)(0x0001 << (bit)))
+#define UNSET_BIT(var, bit)  ((var) &= (~(uint16_t)(0x0001 << (bit))))
 
-#define NUM_ICS_WS2812_1CH_3X(len) (((len)+2)/3)   // 1 WS2811 IC controls 3 zones (each zone has 1 LED, W)
-#define IC_INDEX_WS2812_1CH_3X(i)  ((i)/3)
+#define NUM_ICS_WS2812_1CH_3X(len) (((len) + 2) / 3)   // 1 WS2811 IC controls 3 zones (each zone has 1 LED, W)
+#define IC_INDEX_WS2812_1CH_3X(i)  ((i) / 3)
 
-#define NUM_ICS_WS2812_2CH_3X(len) (((len)+1)*2/3) // 2 WS2811 ICs control 3 zones (each zone has 2 LEDs, CW and WW)
-#define IC_INDEX_WS2812_2CH_3X(i)  ((i)*2/3)
-#define WS2812_2CH_3X_SPANS_2_ICS(i) ((i)&0x01)    // every other LED zone is on two different ICs
+#define NUM_ICS_WS2812_2CH_3X(len) (((len) + 1) * 2 / 3) // 2 WS2811 ICs control 3 zones (each zone has 2 LEDs, CW and WW)
+#define IC_INDEX_WS2812_2CH_3X(i)  ((i) * 2 / 3)
+#define WS2812_2CH_3X_SPANS_2_ICS(i) ((i) & 0x01)    // every other LED zone is on two different ICs
 
 
 // flag for using double buffering in BusDigital
@@ -26,17 +26,20 @@ extern bool useGlobalLedBuffer;
 //temporary struct for passing bus configuration to bus
 struct BusConfig
 {
-  uint8_t type;
-  uint16_t count;
-  uint16_t start;
-  uint8_t colorOrder;
-  bool reversed;
-  uint8_t skipAmount;
-  bool refreshReq;
-  uint8_t autoWhite;
+  bool refreshReq = false;
+  bool doubleBuffer = false;
+  bool reversed = false;
+
+  uint8_t type = 0;
+  uint8_t colorOrder = 0;
+  uint8_t skipAmount = 0;
+  uint8_t autoWhite = 0;
   uint8_t pins[5] = {LEDPIN, 255, 255, 255, 255};
-  uint16_t frequency;
-  bool doubleBuffer;
+
+  uint16_t frequency = 0;
+  uint16_t count = 0;
+  uint16_t start = 0;
+  
 
   BusConfig(uint8_t busType, uint8_t* ppins, uint16_t pstart, uint16_t len = 1, uint8_t pcolorOrder = COL_ORDER_GRB, bool rev = false, uint8_t skip = 0, byte aw = RGBW_MODE_MANUAL_ONLY, uint16_t clock_kHz = 0U, bool dblBfr = false)
       : count(len), start(pstart), colorOrder(pcolorOrder), reversed(rev), skipAmount(skip), autoWhite(aw), frequency(clock_kHz), doubleBuffer(dblBfr)
@@ -198,12 +201,21 @@ class Bus
 
     static  bool hasWhite(uint8_t type)
     {
-      if ((type >= TYPE_WS2812_1CH && type <= TYPE_WS2812_WWA) || type == TYPE_SK6812_RGBW || type == TYPE_TM1814) return true; // digital types with white channel
-      
-      if (type > TYPE_ONOFF && type <= TYPE_ANALOG_5CH && type != TYPE_ANALOG_3CH) return true; // analog types with white channel
-      
-      if (type == TYPE_NET_DDP_RGBW) return true; // network types with white channel
-      
+      if ((type >= TYPE_WS2812_1CH && type <= TYPE_WS2812_WWA) || type == TYPE_SK6812_RGBW || type == TYPE_TM1814)
+      {
+        return true; // digital types with white channel
+      }
+
+      if (type > TYPE_ONOFF && type <= TYPE_ANALOG_5CH && type != TYPE_ANALOG_3CH)
+      {
+        return true; // analog types with white channel
+      }
+
+      if (type == TYPE_NET_DDP_RGBW)
+      {
+        return true; // network types with white channel
+      }
+
       return false;
     }
 
@@ -211,10 +223,10 @@ class Bus
 
     static  bool hasCCT(uint8_t type)
     {
-      if (type == TYPE_WS2812_2CH_X3 || type == TYPE_WS2812_WWA ||
-          type == TYPE_ANALOG_2CH    || type == TYPE_ANALOG_5CH) return true;
-
-      return false;
+      return ((type == TYPE_WS2812_2CH_X3) ||
+              (type == TYPE_WS2812_WWA)    ||
+              (type == TYPE_ANALOG_2CH)    ||
+              (type == TYPE_ANALOG_5CH));
     }
 
     static void setCCT(uint16_t cct)
@@ -236,7 +248,6 @@ class Bus
         //compile-time limiter for hardware that can't power both white channels at max
         if (_cctBlend > WLED_MAX_CCT_BLEND) _cctBlend = WLED_MAX_CCT_BLEND;
 #endif
-
     }
 
     inline        void    setAutoWhiteMode(uint8_t m) { if (m < 5) _autoWhiteMode = m; }
@@ -262,7 +273,7 @@ class Bus
     uint8_t *allocData(size_t size = 1);
 
     // RLM - verify memory deallovations
-    void     freeData() { if (_data != nullptr) free(_data); _data = nullptr; }
+    void freeData() { if (_data != nullptr) free(_data); _data = nullptr; }
 };
 
 
@@ -363,7 +374,8 @@ class BusOnOff : public Bus
 };
 
 
-class BusNetwork : public Bus {
+class BusNetwork : public Bus
+{
   public:
     BusNetwork(BusConfig &bc);
     ~BusNetwork() { cleanup(); }
@@ -411,10 +423,11 @@ class BusManager
 
     //semi-duplicate of strip.getLengthTotal() (though that just returns strip._length, calculated in finalizeInit())
     uint16_t getTotalLength();
+
     inline uint8_t getNumBusses() const { return numBusses; }
 
     // RLM - investigate if objects are not trivially copyable or overlap
-    inline void                 updateColorOrderMap(const ColorOrderMap &com) { memcpy(&colorOrderMap, &com, sizeof(ColorOrderMap)); }
+    inline void updateColorOrderMap(const ColorOrderMap &com) { memcpy(&colorOrderMap, &com, sizeof(ColorOrderMap)); }
 
     inline const ColorOrderMap& getColorOrderMap() const { return colorOrderMap; }
 
@@ -429,6 +442,11 @@ class BusManager
 
       for (int i = 0; i < numBusses; i++)
       {
+        if (!busses[i])
+        {
+          continue;
+        }
+
         // RLM - validate array bounds, also what does '96' represent??
         if ((busses[i]->getType() >= TYPE_NET_DDP_RGB) && (busses[i]->getType() < 96))
         {
