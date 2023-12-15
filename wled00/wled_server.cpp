@@ -28,51 +28,91 @@ static const char s_unlock_ota [] PROGMEM = "Please unlock OTA in security setti
 static const char s_unlock_cfg [] PROGMEM = "Please unlock settings using PIN code!";
 
 //Is this an IP?
-bool isIp(String str) {
-  for (size_t i = 0; i < str.length(); i++) {
+bool isIp(String str)
+{
+  for (size_t i = 0; i < str.length(); i++)
+  {
     int c = str.charAt(i);
-    if (c != '.' && (c < '0' || c > '9')) {
+
+    if (c != '.' && (c < '0' || c > '9'))
+    {
       return false;
     }
   }
+
   return true;
 }
 
-void handleUpload(AsyncWebServerRequest *request, const String& filename, size_t index, uint8_t *data, size_t len, bool final) {
-  if (!correctPIN) {
-    if (final) request->send(500, "text/plain", FPSTR(s_unlock_cfg));
+void handleUpload(AsyncWebServerRequest *request, const String& filename, size_t index, uint8_t *data, size_t len, bool final)
+{
+  if (!correctPIN)
+  {
+    if (final)
+    {
+      request->send(500, "text/plain", FPSTR(s_unlock_cfg));
+    }
+
     return;
   }
-  if (!index) {
+
+  if (!index)
+  {
     String finalname = filename;
-    if (finalname.charAt(0) != '/') {
-      finalname = '/' + finalname; // prepend slash if missing
+
+    // prepend slash if missing
+    if (finalname.charAt(0) != '/')
+    {
+      finalname = '/' + finalname;
     }
 
     request->_tempFile = WLED_FS.open(finalname, "w");
+    
+    #ifdef WLED_DEBUG
     DEBUG_PRINT(F("Uploading "));
     DEBUG_PRINTLN(finalname);
-    if (finalname.equals("/presets.json")) presetsModifiedTime = toki.second();
+    #endif
+
+    if (finalname.equals("/presets.json"))
+    {
+      presetsModifiedTime = toki.second();
+    }
   }
-  if (len) {
+
+  if (len)
+  {
     request->_tempFile.write(data,len);
   }
-  if (final) {
+
+  if (final)
+  {
     request->_tempFile.close();
-    if (filename.indexOf(F("cfg.json")) >= 0) { // check for filename with or without slash
+
+    if (filename.indexOf(F("cfg.json")) >= 0)
+    {
+      // check for filename with or without slash
       doReboot = true;
       request->send(200, "text/plain", F("Configuration restore successful.\nRebooting..."));
-    } else {
-      if (filename.indexOf(F("palette")) >= 0 && filename.indexOf(F(".json")) >= 0) strip.loadCustomPalettes();
+    }
+    else
+    {
+      if (filename.indexOf(F("palette")) >= 0 && filename.indexOf(F(".json")) >= 0)
+      {
+        strip.loadCustomPalettes();
+      }
+
       request->send(200, "text/plain", F("File Uploaded!"));
     }
+
     cacheInvalidate++;
   }
 }
 
-void createEditHandler(bool enable) {
+void createEditHandler(bool enable)
+{
   if (editHandler != nullptr) server.removeHandler(editHandler);
-  if (enable) {
+
+  if (enable)
+  {
     #ifdef WLED_ENABLE_FS_EDITOR
       #ifdef ARDUINO_ARCH_ESP32
       editHandler = &server.addHandler(new SPIFFSEditor(WLED_FS));//http_username,http_password));
@@ -84,7 +124,9 @@ void createEditHandler(bool enable) {
         serveMessage(request, 501, "Not implemented", F("The FS editor is disabled in this build."), 254);
       });
     #endif
-  } else {
+  }
+  else
+  {
     editHandler = &server.on("/edit", HTTP_ANY, [](AsyncWebServerRequest *request){
       serveMessage(request, 500, "Access Denied", FPSTR(s_unlock_cfg), 254);
     });

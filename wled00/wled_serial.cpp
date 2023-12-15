@@ -4,7 +4,8 @@
  * Adalight and TPM2 handler
  */
 
-enum class AdaState {
+enum class AdaState
+{
   Header_A,
   Header_d,
   Header_a,
@@ -23,13 +24,21 @@ uint16_t currentBaud = 1152; //default baudrate 115200 (divided by 100)
 bool continuousSendLED = false;
 uint32_t lastUpdate = 0;
 
-void updateBaudRate(uint32_t rate){
-  uint16_t rate100 = rate/100;
-  if (rate100 == currentBaud || rate100 < 96) return;
+void updateBaudRate(uint32_t rate)
+{
+  uint16_t rate100 = rate / 100;
+
+  if (rate100 == currentBaud || rate100 < 96)
+  {
+    return;
+  }
+
   currentBaud = rate100;
 
-  if (!pinManager.isPinAllocated(hardwareTX) || pinManager.getPinOwner(hardwareTX) == PinOwner::DebugOut){
-    Serial.print(F("Baud is now ")); Serial.println(rate);
+  if (!pinManager.isPinAllocated(hardwareTX) || pinManager.getPinOwner(hardwareTX) == PinOwner::DebugOut)
+  {
+    Serial.print(F("Baud is now "));
+    Serial.println(rate);
   }
 
   Serial.flush();
@@ -37,40 +46,68 @@ void updateBaudRate(uint32_t rate){
 }
 
 // RGB LED data return as JSON array. Slow, but easy to use on the other end.
-void sendJSON(){
-  if (!pinManager.isPinAllocated(hardwareTX) || pinManager.getPinOwner(hardwareTX) == PinOwner::DebugOut) {
-    uint16_t used = strip.getLengthTotal();
-    Serial.write('[');
-    for (uint16_t i=0; i<used; i++) {
-      Serial.print(strip.getPixelColor(i));
-      if (i != used-1) Serial.write(',');
-    }
-    Serial.println("]");
+void sendJSON()
+{
+  if (pinManager.isPinAllocated(hardwareTX) && pinManager.getPinOwner(hardwareTX) != PinOwner::DebugOut)
+  {
+    return;
   }
+
+  uint16_t used = strip.getLengthTotal();
+
+  Serial.write('[');
+
+  for (uint16_t i = 0; i < used; i++)
+  {
+    Serial.print(strip.getPixelColor(i));
+
+    if (i != used - 1)
+    {
+      Serial.write(',');
+    }
+  }
+
+  Serial.println("]");
 }
 
 // RGB LED data returned as bytes in TPM2 format. Faster, and slightly less easy to use on the other end.
-void sendBytes(){
-  if (!pinManager.isPinAllocated(hardwareTX) || pinManager.getPinOwner(hardwareTX) == PinOwner::DebugOut) {
-    Serial.write(0xC9); Serial.write(0xDA);
-    uint16_t used = strip.getLengthTotal();
-    uint16_t len = used*3;
-    Serial.write(highByte(len));
-    Serial.write(lowByte(len));
-    for (uint16_t i=0; i < used; i++) {
-      uint32_t c = strip.getPixelColor(i);
-      Serial.write(qadd8(W(c), R(c))); //R, add white channel to RGB channels as a simple RGBW -> RGB map
-      Serial.write(qadd8(W(c), G(c))); //G
-      Serial.write(qadd8(W(c), B(c))); //B
-    }
-    Serial.write(0x36); Serial.write('\n');
+void sendBytes()
+{
+  if (pinManager.isPinAllocated(hardwareTX) && pinManager.getPinOwner(hardwareTX) != PinOwner::DebugOut)
+  {
+    return;
   }
+
+  Serial.write(0xC9);
+  Serial.write(0xDA);
+
+  uint16_t used = strip.getLengthTotal();
+  uint16_t len = used*3;
+
+  Serial.write(highByte(len));
+  Serial.write(lowByte(len));
+
+  for (uint16_t i = 0; i < used; i++)
+  {
+    uint32_t c = strip.getPixelColor(i);
+
+    Serial.write(qadd8(W(c), R(c))); //R, add white channel to RGB channels as a simple RGBW -> RGB map
+    Serial.write(qadd8(W(c), G(c))); //G
+    Serial.write(qadd8(W(c), B(c))); //B
+  }
+
+  Serial.write(0x36);
+  Serial.write('\n');
 }
 
 void handleSerial()
 {
-  if (pinManager.isPinAllocated(hardwareRX)) return;
-  if (!Serial) return;              // arduino docs: `if (Serial)` indicates whether or not the USB CDC serial connection is open. For all non-USB CDC ports, this will always return true
+  // arduino docs: `if (Serial)` indicates whether or not the USB CDC serial connection is open.
+  // For all non-USB CDC ports, this will always return true
+  if (pinManager.isPinAllocated(hardwareRX) || !Serial)
+  {
+    return;
+  }
 
   #ifdef WLED_ENABLE_ADALIGHT
   static auto state = AdaState::Header_A;
@@ -194,16 +231,18 @@ void handleSerial()
     }
 
     // All other received bytes will disable Continuous Serial Streaming
-    if (continuousSendLED && next != 'O'){
+    if (continuousSendLED && next != 'O')
+    {
       continuousSendLED = false;
-      }
+    }
 
     Serial.read(); //discard the byte
   }
   #endif
 
   // If Continuous Serial Streaming is enabled, send new LED data as bytes
-  if (continuousSendLED && (lastUpdate != strip.getLastShow())){
+  if (continuousSendLED && (lastUpdate != strip.getLastShow()))
+  {
     sendBytes();
     lastUpdate = strip.getLastShow();
   }
